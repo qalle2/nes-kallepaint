@@ -1,0 +1,21 @@
+# This batch file will DELETE files. Use at your own risk.
+
+# Encode logo
+rm -f logo.bin
+python3 logo-encode.py
+
+# Encode sprite CHR data
+rm -f sprites.bin
+python3 ../nes-util/nes_chr_encode.py sprites.png sprites.bin
+
+# Assemble
+asm6f paint.asm -L paint.nes
+
+# Delete temporary files
+rm logo.bin
+rm sprites.bin
+
+# Compress binary
+rm -f binary.zip
+7z a -mx9 binary.zip paint.nes
+
