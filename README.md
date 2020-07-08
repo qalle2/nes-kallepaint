@@ -1,6 +1,9 @@
 # Kalle Paint
 A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6f](https://github.com/freem/asm6f). The compiled binary (.nes) is in `binary.zip`.
 
+## Screenshot
+![paint.asm](paint.png)
+
 ## Features
 * 64&times;50 "pixels" (4&times;4 actual pixels each)
 * four colors at the same time (plus the GUI colors)
@@ -22,7 +25,4 @@ Buttons in palette edit mode:
 * left/right: decrement/increment ones of color number
 * B/A: decrement/increment 16s of color number
 * select: return to paint mode
-
-## Screenshot
-![paint.asm](paint.png)
 
