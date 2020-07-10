@@ -1,5 +1,18 @@
 # Kalle Paint
-A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6f](https://github.com/freem/asm6f). The compiled binary (`.nes`) is in `binary.zip`.
+A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6f](https://github.com/freem/asm6f). The binary files (`.bin`, `.nes`) are in `binaries.zip`.
+
+## How to assemble
+First, get the `.bin` files. Just extract them from `binaries.zip` or encode them from PNG files:
+* Make sure you have:
+  * Python 3
+  * Pillow module for Python
+  * `nes_chr_encode.py` from my `nes-util` repository
+* Run `python3 logo-encode.py logo.png logo.bin`
+* Run `python3 nes_chr_encode.py sprites.png sprites.bin`
+
+Then, assemble: `asm6f paint.asm paint.nes`
+
+Note: the Linux script `assemble` is intended for my personal use.
 
 ## Screenshot
 ![paint.asm](paint.png)

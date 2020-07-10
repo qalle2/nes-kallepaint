@@ -1,33 +1,15 @@
-"""Convert the Kalle Paint logo from PNG into binary data (NES tile indexes)."""
+"""Convert the Kalle Paint logo from PNG into binary data (NES tile indexes).
+Grayscale 0x00 -> NES color 0
+Grayscale 0x55 -> NES color 1
+Grayscale 0xaa -> NES color 2
+Grayscale 0xff -> NES color 3"""
 
+import os
 import sys
 from PIL import Image  # Pillow
 
-SOURCE_FILE = "logo.png"
-TARGET_FILE = "logo.bin"
-PNG_COLOR_TO_NES_COLOR = {  # RGB -> NES color (0-3)
-    (0xff, 0xff, 0xff): 1,
-    (0x00, 0x00, 0x00): 2,
-    (0x80, 0x80, 0x80): 3,
-}
-
-def validate_image(img):
-    """img: Pillow image; exit on error"""
-
-    if img.width != 64 or img.height != 6:
-        sys.exit("The image must be 64*6 pixels.")
-
-    if img.mode != "RGB":
-        sys.exit("The image must be in RGB format.")
-
-    for y in range(img.height):
-        for x in range(img.width):
-            color = img.getpixel((x, y))
-            if color not in PNG_COLOR_TO_NES_COLOR:
-                sys.exit(f"Unknown color: {color}")
-
 def encode_image(img):
-    """Read 64*6 RGB pixels, convert them into 2-bit NES colors, convert them into 3*32 bytes
+    """Read 64*6 PNG pixels, convert them into 2-bit NES colors, convert them into 3*32 bytes
     (NES tile indexes).
     1 byte = 2*2 pixels:
         - bits: AaBbCcDd
@@ -45,7 +27,7 @@ def encode_image(img):
         for pi in range(4):  # source pixel index (bits: yx)
             y = bi >> 4 & 0x06 | pi >> 1  # bits: YYy
             x = bi << 1 & 0x3e | pi & 1   # bits: XX XXXx
-            byte = byte << 2 | PNG_COLOR_TO_NES_COLOR[img.getpixel((x, y))]
+            byte = byte << 2 | img.getpixel((x, y)) // 0x55
         encoded.append(byte)
         if bi & 0x1f == 0x1f:
             yield encoded
@@ -54,19 +36,32 @@ def encode_image(img):
 def main():
     """The main function."""
 
+    # read args
+    if len(sys.argv) != 3:
+        sys.exit("Args: sourceFile targetFile")
+    (sourceFile, targetFile) = (sys.argv[1], sys.argv[2])
+
+    # validate args
+    if not os.path.isfile(sourceFile):
+        sys.exit(f"{sourceFile} not found.")
+    if os.path.exists(targetFile):
+        sys.exit(f"{targetFile} already exists.")
+
+    # convert image
     try:
-        with open(SOURCE_FILE, "rb") as source:
+        with open(sourceFile, "rb") as source:
             source.seek(0)
             img = Image.open(source)
-            validate_image(img)
-            with open(TARGET_FILE, "wb") as target:
+            if img.width != 64 or img.height != 6 or img.mode != "L":
+                sys.exit("The image must be 64*6 pixels and grayscale.")
+            with open(targetFile, "wb") as target:
                 target.seek(0)
                 for row in encode_image(img):
                     target.write(row)
     except OSError:
         sys.exit("Error reading/writing files.")
 
-    print(f"{TARGET_FILE} written.")
+    print(f"{targetFile} written.")
 
 if __name__ == "__main__":
     main()
