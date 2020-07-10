@@ -62,6 +62,7 @@ cursor_move_delay           equ 10
 ; --- Main parts -----------------------------------------------------------------------------------
 
     org $c000
+    pad $f800
     include "paint-init.asm"
     include "paint-mainloop.asm"
     include "paint-nmi.asm"

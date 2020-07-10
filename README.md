@@ -1,18 +1,18 @@
 # Kalle Paint
-A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6f](https://github.com/freem/asm6f). The binary files (`.bin`, `.nes`) are in `binaries.zip`.
+A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Only tested on FCEUX. Assembles with [asm6f](https://github.com/freem/asm6f). The binary files (`.bin`, `.nes`) are in `bin.zip`.
 
 ## How to assemble
-First, get the `.bin` files. Just extract them from `binaries.zip` or encode them from PNG files:
+First, get the `.bin` files. Just extract them from `bin.zip` or encode them using the Python scripts:
 * Make sure you have:
   * Python 3
-  * Pillow module for Python
-  * `nes_chr_encode.py` from my `nes-util` repository
-* Run `python3 logo-encode.py logo.png logo.bin`
-* Run `python3 nes_chr_encode.py sprites.png sprites.bin`
+  * [Pillow](https://python-pillow.org) module for Python
+  * `nes_chr_encode.py` and its dependencies from my [NES utilities](https://github.com/qalle2/nes-util) repository
+* Create `logo.bin`: `python3 logo-encode.py logo.png logo.bin`
+* Create `sprites.bin`: `python3 nes_chr_encode.py sprites.png sprites.bin`
 
 Then, assemble: `asm6f paint.asm paint.nes`
 
-Note: the Linux script `assemble` is intended for my personal use.
+Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
 
 ## Screenshot
 ![paint.asm](paint.png)
@@ -27,10 +27,10 @@ Note: the Linux script `assemble` is intended for my personal use.
 There are two modes: paint mode and palette edit mode. The program starts in paint mode.
 
 Buttons in paint mode:
-* arrows: move cursor
-* start: toggle between small and large brush
+* up/down/left/right: move cursor
+* start: toggle between small (1&times;1-pixel) and large (2&times;2-pixel) brush
 * B: cycle through four paint colors
-* A: paint using selected color and brush
+* A: paint at cursor using selected color and brush
 * select: enter palette editor
 
 Buttons in palette edit mode:
@@ -38,4 +38,12 @@ Buttons in palette edit mode:
 * left/right: decrement/increment ones of color number
 * B/A: decrement/increment 16s of color number
 * select: return to paint mode
+
+## Technical info
+* mapper: NROM (iNES mapper number 0)
+* PRG memory: 2 KiB ROM (padded to the end of 16 KiB because of iNES file format limitations)
+* CHR memory: 8 KiB RAM
+* name table mirroring: horizontal (does not really matter)
+* save RAM: none
+* compatibility: NTSC and PAL
 

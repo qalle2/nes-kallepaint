@@ -13,8 +13,8 @@ python3 ../nes-util/nes_chr_encode.py sprites.png sprites.bin
 asm6f paint.asm -L paint.nes
 
 # Compress binaries
-rm -f binaries.zip
-7z a -mx9 -bd -bso0 binaries.zip *.bin *.nes
+rm -f bin.zip
+7z a -mx9 -bd -bso0 bin.zip *.bin *.nes
 
 # Delete temporary files
 rm logo.bin
