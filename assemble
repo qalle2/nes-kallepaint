@@ -1,22 +1,31 @@
 # This batch file will DELETE files. Use at your own risk.
 # Intended for developer's personal use.
 
+# Optimize PNG files
+pngout gfx/logo.png -q
+pngout gfx/sprites.png -q
+
 # Encode logo
 rm -f logo.bin
-python3 logo-encode.py logo.png logo.bin
+python3 gfx/logo-encode.py gfx/logo.png logo.bin
+
+# Encode background CHR data
+rm -f background.bin
+python3 gfx/background.py background.bin
 
 # Encode sprite CHR data
 rm -f sprites.bin
-python3 ../nes-util/nes_chr_encode.py sprites.png sprites.bin
+python3 ../nes-util/nes_chr_encode.py gfx/sprites.png sprites.bin
 
 # Assemble
-asm6f paint.asm -L paint.nes
+cd src
+asm6f paint.asm -l ../paint.nes
+cd ..
 
 # Compress binaries
 rm -f bin.zip
 7z a -mx9 -bd -bso0 bin.zip *.bin *.nes
 
 # Delete temporary files
-rm logo.bin
-rm sprites.bin
+rm *.bin
 

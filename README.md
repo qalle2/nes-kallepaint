@@ -3,14 +3,16 @@ A paint program for the NES (Nintendo Entertainment System). Written in 6502 ass
 
 ## How to assemble
 First, get the `.bin` files. Just extract them from `bin.zip` or encode them using the Python scripts:
-* Make sure you have:
-  * Python 3
-  * [Pillow](https://python-pillow.org) module for Python
-  * `nes_chr_encode.py` and its dependencies from my [NES utilities](https://github.com/qalle2/nes-util) repository
-* Create `logo.bin`: `python3 logo-encode.py logo.png logo.bin`
-* Create `sprites.bin`: `python3 nes_chr_encode.py sprites.png sprites.bin`
+* Install Python 3.
+* Install the [Pillow](https://python-pillow.org) module for Python (for reading PNG files).
+* Copy `nes_chr_encode.py` and its dependencies from my [NES utilities](https://github.com/qalle2/nes-util) repository.
+* Create `logo.bin`: `python3 gfx/logo-encode.py gfx/logo.png logo.bin`
+* Create `background.bin`: `python3 gfx/background.py background.bin`
+* Create `sprites.bin`: `python3 nes_chr_encode.py gfx/sprites.png sprites.bin`
 
-Then, assemble: `asm6f paint.asm paint.nes`
+Then, assemble:
+* Go to the `src` directory.
+* Run `asm6f paint.asm paint.nes`
 
 Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
 
@@ -41,8 +43,8 @@ Buttons in palette edit mode:
 
 ## Technical info
 * mapper: NROM (iNES mapper number 0)
-* PRG memory: 2 KiB ROM (padded to the end of 16 KiB because of iNES file format limitations)
-* CHR memory: 8 KiB RAM
+* PRG ROM: 2 KiB (padded to the end of 16 KiB because of iNES file format limitations)
+* CHR ROM: 8 KiB
 * name table mirroring: horizontal (does not really matter)
 * save RAM: none
 * compatibility: NTSC and PAL

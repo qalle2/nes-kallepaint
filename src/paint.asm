@@ -14,13 +14,12 @@
 
 ; zero page
 user_palette           equ $00  ; 4 bytes (each $00-$3f)
-paint_area_offset      equ $04  ; 2 bytes (offset to nt_buffer and paint area in VRAM; $000-$2ff)
-nt_buffer_address      equ $06  ; 2 bytes (nt_buffer...nt_buffer+$2ff)
-paint_vram_address     equ $08  ; 2 bytes (ppu_paint_area_start...ppu_paint_area_start+$2ff)
-in_palette_editor      equ $0a  ; flag (in palette edit mode instead of paint mode?)
-execute_main_loop      equ $0b  ; flag (allow main loop to run once?)
+paint_area_offset      equ $04  ; 2 bytes (offset to nt_buffer and ppu_paint_area)
+nt_buffer_address      equ $06  ; 2 bytes (address within nt_buffer)
+in_palette_editor      equ $0a  ; flag (false = in paint mode, true = in palette edit mode)
+run_main_loop          equ $0b  ; flag (main loop allowed to run?)
 update_paint_area_vram equ $0c  ; flag (update paint area VRAM?)
-joypad_status          equ $0d  ; first joypad status (bits: A, B, select, start, up, down, left, right)
+joypad_status          equ $0d  ; first joypad status (bits: A B select start up down left right)
 prev_joypad_status     equ $0e  ; first joypad status on previous frame
 paint_move_delay_left  equ $0f  ; cursor move delay left (paint mode)
 paint_cursor_type      equ $10  ; cursor type (paint mode; 0=small, 1=big)
@@ -31,11 +30,11 @@ palette_cursor         equ $14  ; cursor position (palette edit mode; 0-3)
 temp                   equ $15  ; temporary
 
 ; other RAM
-sprite_data equ $0200  ; 256 bytes (first 9 paint mode sprites, then 13 palette editor sprites)
-nt_buffer   equ $0300  ; 800 = $320 = 32*25 bytes (copy of name table data of paint area)
+sprite_data equ $0200  ; $100 bytes (first paint mode sprites, then palette editor sprites)
+nt_buffer   equ $0300  ; $320 = 32*25 bytes (copy of name table data of paint area)
 
-; PPU
-ppu_paint_area_start equ $2080  ; 800 = $320 = 32*25 bytes
+; VRAM
+ppu_paint_area equ $2080  ; $320 = 32*25 bytes
 
 ; colors
 black  equ $0f
@@ -55,26 +54,28 @@ cursor_move_delay           equ 10
 ; --- iNES header ----------------------------------------------------------------------------------
 
     inesprg 1  ; PRG ROM size: 1 * 16 KiB
-    ineschr 0  ; CHR ROM size: 0 * 8 KiB (uses CHR RAM)
+    ineschr 1  ; CHR ROM size: 1 * 8 KiB
     inesmir 0  ; name table mirroring: horizontal
     inesmap 0  ; mapper: NROM
 
-; --- Main parts -----------------------------------------------------------------------------------
+; --- PRG ROM --------------------------------------------------------------------------------------
 
-    org $c000
-    pad $f800
-    include "paint-init.asm"
-    include "paint-mainloop.asm"
-    include "paint-nmi.asm"
-
-; --- Subs/tables used by more than one part -------------------------------------------------------
-
-solid_color_tiles:
-    ; tiles of solid color 0/1/2/3
-    hex 00 55 aa ff
-
-; --- Interrupt vectors ----------------------------------------------------------------------------
-
+    org $c000                       ; last 16 KiB of PRG ROM (iNES format limitations)
+    pad $f800                       ; last 2 KiB of PRG ROM
+    include "init.asm"
+    include "mainloop.asm"
+    include "mainloop-paint.asm"
+    include "mainloop-paledit.asm"
+    pad $ff00                       ; avoid crossing page boundary in speed-critical loops/data
+    include "nmi.asm"
+    include "nmi-paint.asm"
+    include "nmi-paledit.asm"
     pad $fffa
-    dw nmi, reset, $ffff
+    dw nmi, reset, $ffff            ; interrupt vectors (at the end of PRG ROM)
+
+; --- CHR ROM --------------------------------------------------------------------------------------
+
+    pad $10000
+    incbin "../background.bin", $0000, $1000  ; 256 tiles (4 KiB)
+    incbin "../sprites.bin", $0000, $1000     ; 256 tiles (4 KiB)
 
