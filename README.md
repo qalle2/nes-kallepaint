@@ -12,7 +12,7 @@ First, get the `.bin` files. Just extract them from `bin.zip` or encode them usi
 
 Then, assemble:
 * Go to the `src` directory.
-* Run `asm6f paint.asm paint.nes`
+* Run `asm6f paint.asm ../paint.nes`
 
 Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
 
