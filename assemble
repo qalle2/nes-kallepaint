@@ -2,12 +2,7 @@
 # Intended for developer's personal use.
 
 # Optimize PNG files
-pngout gfx/logo.png -q
 pngout gfx/sprites.png -q
-
-# Encode logo
-rm -f logo.bin
-python3 gfx/logo-encode.py gfx/logo.png logo.bin
 
 # Encode background CHR data
 rm -f background.bin

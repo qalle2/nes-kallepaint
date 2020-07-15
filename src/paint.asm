@@ -27,29 +27,39 @@ paint_cursor_x         equ $11  ; cursor X position (paint mode; 0-63)
 paint_cursor_y         equ $12  ; cursor Y position (paint mode; 0-47)
 paint_color            equ $13  ; selected color (paint mode; 0-3)
 palette_cursor         equ $14  ; cursor position (palette edit mode; 0-3)
-temp                   equ $15  ; temporary
+cursor_blink_timer     equ $15  ; cursor blink timer (palette edit mode)
+temp                   equ $16  ; temporary
 
 ; other RAM
 sprite_data equ $0200  ; $100 bytes (first paint mode sprites, then palette editor sprites)
-nt_buffer   equ $0300  ; $320 = 32*25 bytes (copy of name table data of paint area)
+nt_buffer   equ $0300  ; $380 = 28*32 bytes (copy of name table data of paint area)
 
 ; VRAM
-ppu_paint_area equ $2080  ; $320 = 32*25 bytes
+ppu_paint_area equ $2020  ; $380 = 28*32 bytes
 
-; colors
-black  equ $0f
-gray   equ $00
-white  equ $30
-red    equ $16
-yellow equ $28
-green  equ $1a
-blue   equ $02
-lblue  equ $12
+; some NES colors
+black equ $0f
+white equ $30
+red   equ $16
+green equ $1a
+blue  equ $02
+pink  equ $24
 
-; misc
-paint_mode_sprite_count     equ 10
-palette_editor_sprite_count equ 13
-cursor_move_delay           equ 10
+; default user palette
+default_color0 equ white
+default_color1 equ red
+default_color2 equ green
+default_color3 equ blue
+
+; palette editor colors (background, foreground)
+editor_bg_color equ black
+editor_fg_color equ white
+
+; palette editor cursor blink rate
+edit_crsr_blink_rate equ 4  ; 0 (fastest) to 7 (slowest)
+
+; paint cursor move repeat delay
+cursor_move_delay equ 10  ; frames
 
 ; --- iNES header ----------------------------------------------------------------------------------
 
@@ -60,18 +70,13 @@ cursor_move_delay           equ 10
 
 ; --- PRG ROM --------------------------------------------------------------------------------------
 
-    org $c000                       ; last 16 KiB of PRG ROM (iNES format limitations)
-    pad $f800                       ; last 2 KiB of PRG ROM
+    org $c000               ; last 16 KiB of PRG ROM (iNES format limitations)
+    pad $fc00               ; last 1 KiB of PRG ROM
     include "init.asm"
     include "mainloop.asm"
-    include "mainloop-paint.asm"
-    include "mainloop-paledit.asm"
-    pad $ff00                       ; avoid crossing page boundary in speed-critical loops/data
     include "nmi.asm"
-    include "nmi-paint.asm"
-    include "nmi-paledit.asm"
     pad $fffa
-    dw nmi, reset, $ffff            ; interrupt vectors (at the end of PRG ROM)
+    dw nmi, reset, $ffff    ; interrupt vectors (at the end of PRG ROM)
 
 ; --- CHR ROM --------------------------------------------------------------------------------------
 

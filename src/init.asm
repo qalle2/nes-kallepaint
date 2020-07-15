@@ -15,41 +15,41 @@ reset:
     inx
     bne -
 
-    ; clear nt_buffer ($320 = 4 * 200 bytes)
+    ; clear nt_buffer ($380 = 4 * 224 bytes)
     tya
     tax
 -   sta nt_buffer, x
-    sta nt_buffer + 200, x
-    sta nt_buffer + 400, x
-    sta nt_buffer + 600, x
+    sta nt_buffer + 224, x
+    sta nt_buffer + 2 * 224, x
+    sta nt_buffer + 3 * 224, x
     inx
-    cpx #200
+    cpx #224
     bne -
 
-    ; set default coordinates and paint color
+    ; set nonzero default values
     lda #30
     sta paint_cursor_x
-    lda #24
+    lda #26
     sta paint_cursor_y
     inc paint_color
 
     ; init user palette
     ldx #3
--   lda initial_palette, x
+-   lda initial_palette_bg, x
     sta user_palette, x
     dex
     bpl -
 
     ; copy initial sprite data (paint mode, palette edit mode)
-    ldx #((paint_mode_sprite_count + palette_editor_sprite_count) * 4 - 1)
+    ldx #(initial_sprite_data_end - initial_sprite_data - 1)
 -   lda initial_sprite_data, x
     sta sprite_data, x
     dex
     bpl -
 
-    ; hide palette editor sprites and unused sprites
+    ; hide all sprites except the first one (cursor)
     lda #$ff
-    ldx #(paint_mode_sprite_count * 4)
+    ldx #(1 * 4)
 -   sta sprite_data, x
     inx
     inx
@@ -62,56 +62,40 @@ reset:
     ; reset ppu_addr/ppu_scroll latch
     bit ppu_status
 
-    ; set palette
+    ; set BG palette
     lda #$3f
     sta ppu_addr
     sty ppu_addr
     ldx #0
--   lda initial_palette, x
+-   lda initial_palette_bg, x
     sta ppu_data
     inx
-    cpx #32
+    cpx #4
     bne -
 
-    ; prepare to write name table 0 and attribute table 0
+    ; set sprite palettes
+    lda #$3f
+    sta ppu_addr
+    lda #$10
+    sta ppu_addr
+    ldx #0
+-   lda initial_palette_spr, x
+    sta ppu_data
+    inx
+    cpx #16
+    bne -
+
+    ; clear name table 0 and attribute 0 ($400 bytes)
     lda #$20
     sta ppu_addr
     sty ppu_addr
-
-    ; 1 row of invisible area (solid color 1)
-    lda #$55
-    ldx #32
-    jsr print_repeatedly
-
-    ; 3 rows of logo
     ldx #0
--   lda logo, x
-    sta ppu_data
-    inx
-    cpx #(3 * 32)
-    bne -
-
-    ; 25 rows of paint area + 1 row of invisible area (solid color 0, 26*32 tiles)
-    ldx #(26 * 8)
 -   sty ppu_data
     sty ppu_data
     sty ppu_data
     sty ppu_data
-    dex
+    inx
     bne -
-
-    ; attribute table - top bar: hex 55 55 55 55 55 55 15 55
-    lda #$55
-    ldx #6
-    jsr print_repeatedly
-    ldx #$15
-    stx ppu_data
-    sta ppu_data
-
-    ; attribute table - paint area & invisible area: $00
-    tya
-    ldx #(7 * 8)
-    jsr print_repeatedly
 
     ; clear VRAM address & scroll
     sty ppu_addr
@@ -129,60 +113,40 @@ reset:
     lda #%10001000
     sta ppu_ctrl
 
-    jmp main_loop
+    jmp main
 
 ; --------------------------------------------------------------------------------------------------
 
-print_repeatedly:
-    ; print A X times
--   sta ppu_data
-    dex
-    bne -
-    rts
+initial_palette_bg:
+    ; first background subpalette (paint area)
+    db default_color0, default_color1, default_color2, default_color3
 
-; --------------------------------------------------------------------------------------------------
-
-initial_palette:
-    ; background
-    db white, red,    green, blue    ; paint area; same as two last sprite subpalettes
-    db white, yellow, blue,  lblue   ; top bar
-    db white, white,  white, white   ; unused
-    db white, white,  white, white   ; unused
-    ; sprites
-    db white, yellow, black, gray    ; top bar cover sprites, top bar text, paint cursor
-    db white, black,  white, yellow  ; palette editor: BG, text, cursor
-    db white, black,  white, red     ; palette editor: color 0&1 border, color 0, color 1
-    db white, black,  green, blue    ; palette editor: color 2&3 border, color 2, color 3
+initial_palette_spr:
+    ; all subpalettes used for selected colors in palette editor
+    ; first  one also used for cursors             (4th color = foreground)
+    ; second one also used for palette editor text (4th color = foreground)
+    db default_color0, editor_bg_color, default_color0, default_color1
+    db default_color0, editor_bg_color, default_color1, editor_fg_color
+    db default_color0, editor_bg_color, default_color2, default_color0
+    db default_color0, editor_bg_color, default_color3, default_color0
 
 initial_sprite_data:
-    ; paint mode
-    db 0 * 8 - 1, $10, %00000000,  0 * 8   ; cursor
-    db    12 - 1, $00, %00000000, 29 * 8   ; tens of X position
-    db    12 - 1, $00, %00000000, 30 * 8   ; ones of X position
-    db    20 - 1, $00, %00000000, 29 * 8   ; tens of Y position
-    db    20 - 1, $00, %00000000, 30 * 8   ; ones of Y position
-    db    12 - 1, $13, %00000000, 28 * 8   ; "X"
-    db    20 - 1, $14, %00000000, 28 * 8   ; "Y"
-    db 2 * 8 - 1, $19, %00000000, 27 * 8   ; cover 1 for selected color
-    db 3 * 8 - 1, $19, %00000000, 26 * 8   ; cover 2 for selected color
-    db 3 * 8 - 1, $19, %00000000, 27 * 8   ; cover 3 for selected color
+    ; Y position, tile, attributes (subpalette), X position
 
-    ; palette edit mode
-    db 22 * 8 - 1, $12, %00000001, 1 * 8   ; cursor
-    db 22 * 8 - 1, $17, %00000010, 2 * 8   ; selected color 0
-    db 23 * 8 - 1, $18, %00000010, 2 * 8   ; selected color 1
-    db 24 * 8 - 1, $17, %00000011, 2 * 8   ; selected color 2
-    db 25 * 8 - 1, $18, %00000011, 2 * 8   ; selected color 3
-    db 26 * 8 - 1, $00, %00000001, 1 * 8   ; 16s  of color number
-    db 26 * 8 - 1, $00, %00000001, 2 * 8   ; ones of color number
-    db 21 * 8 - 1, $15, %00000001, 1 * 8   ; left half of "PAL"
-    db 21 * 8 - 1, $16, %00000001, 2 * 8   ; right half of "PAL"
-    db 22 * 8 - 1, $19, %00000001, 1 * 8   ; blank
-    db 23 * 8 - 1, $19, %00000001, 1 * 8   ; blank
-    db 24 * 8 - 1, $19, %00000001, 1 * 8   ; blank
-    db 25 * 8 - 1, $19, %00000001, 1 * 8   ; blank
+    db        $ff, $10, $00, 0       ; #0:  cursor (paint/palette editor)
+    db 11 * 8 - 1, $12, $01, 14 * 8  ; #1:  "X"
+    db 11 * 8 - 1, $00, $01, 15 * 8  ; #2:  tens of X position
+    db 11 * 8 - 1, $00, $01, 16 * 8  ; #3:  ones of X position
+    db 12 * 8 - 1, $13, $01, 14 * 8  ; #4:  "Y"
+    db 12 * 8 - 1, $00, $01, 15 * 8  ; #5:  tens of Y position
+    db 12 * 8 - 1, $00, $01, 16 * 8  ; #6:  ones of Y position
+    db 13 * 8 - 1, $0c, $01, 14 * 8  ; #7:  "C"
+    db 13 * 8 - 1, $00, $01, 15 * 8  ; #8:  16s  of color number
+    db 13 * 8 - 1, $00, $01, 16 * 8  ; #9:  ones of color number
+    db 14 * 8 - 1, $14, $00, 15 * 8  ; #10: selected color 0
+    db 15 * 8 - 1, $14, $01, 15 * 8  ; #11: selected color 1
+    db 16 * 8 - 1, $14, $02, 15 * 8  ; #12: selected color 2
+    db 17 * 8 - 1, $14, $03, 15 * 8  ; #13: selected color 3
 
-logo:
-    ; from logo-encode.py
-    incbin "../logo.bin", 0, 96
+initial_sprite_data_end:
 
