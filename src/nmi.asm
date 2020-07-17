@@ -58,25 +58,24 @@ nmi_paint:
 
     ; update one byte in VRAM paint area from nt_buffer if requested by main loop
 
-    bit update_paint_area_vram
+    bit update_nt
     bpl +
 
-    ; address
+    ; address ($2000 + nt_offset)
     clc
-    lda #<ppu_paint_area
-    adc paint_area_offset + 0
-    tax
-    lda #>ppu_paint_area
-    adc paint_area_offset + 1
+    lda #$20
+    adc nt_offset + 1
     sta ppu_addr
-    stx ppu_addr
+    lda nt_offset + 0
+    sta ppu_addr
 
     ; data
     ldy #0
     lda (nt_buffer_address), y
     sta ppu_data
 
-    lsr update_paint_area_vram  ; clear flag
+    ; clear flag
+    lsr update_nt
 
 +   rts
 
@@ -90,12 +89,12 @@ nmi_editor:
     sty ppu_addr
     lda #$13
     sta ppu_addr
-    lda cursor_blink_timer
-    and #(1 << edit_crsr_blink_rate)
+    lda blink_timer
+    and #(1 << blink_rate)
     bne +
-    lda #editor_bg_color
-    jmp ++                ; unconditional
-+   lda #editor_fg_color
+    lda #editor_bg
+    jmp ++
++   lda #editor_text
 ++  sta ppu_data
 
     ; update selected color to background palette

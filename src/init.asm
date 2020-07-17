@@ -1,53 +1,59 @@
 ; Kalle Paint - initialization
 
 reset:
-    initialize_nes
-
-    ; we use Y as the "zero register" during initialization
-    ldy #$00
-
-    ; disable all sound channels
-    sty snd_chn
-
-    ; clear zero page
-    ldx #0
--   sty $00, x
+    ; Initialize the NES. See http://wiki.nesdev.com/w/index.php/Init_code
+    ;
+    ; ignore IRQs
+    sei
+    ; disable decimal mode
+    cld
+    ; disable APU frame IRQ
+    ldx #$40
+    stx joypad2
+    ; initialize stack pointer
+    ldx #$ff
+    txs
+    ; disable NMI, rendering, DMC IRQs and all sound channels
     inx
-    bne -
+    stx ppu_ctrl
+    stx ppu_mask
+    stx dmc_freq
+    stx snd_chn
 
-    ; clear nt_buffer ($380 = 4 * 224 bytes)
-    tya
+    ; wait until VBlank starts
+    bit ppu_status
+-   bit ppu_status
+    bpl -
+
+    ; clear zero page and nt_buffer
+    lda #$00
     tax
--   sta nt_buffer, x
-    sta nt_buffer + 224, x
-    sta nt_buffer + 2 * 224, x
-    sta nt_buffer + 3 * 224, x
+    ldx #0
+-   sta $00, x
+    sta nt_buffer, x
+    sta nt_buffer + $100, x
+    sta nt_buffer + $200, x
+    sta nt_buffer + $300, x
     inx
-    cpx #224
     bne -
 
-    ; set nonzero default values
-    lda #30
-    sta paint_cursor_x
-    lda #26
-    sta paint_cursor_y
-    inc paint_color
-
-    ; init user palette
+    ; initialize nonzero variables
+    ;
+    ; user palette
     ldx #3
 -   lda initial_palette_bg, x
     sta user_palette, x
     dex
     bpl -
-
-    ; copy initial sprite data (paint mode, palette edit mode)
+    ;
+    ; sprite data
     ldx #(initial_sprite_data_end - initial_sprite_data - 1)
 -   lda initial_sprite_data, x
     sta sprite_data, x
     dex
     bpl -
-
-    ; hide all sprites except the first one (cursor)
+    ;
+    ; hide sprites except cursor (#0)
     lda #$ff
     ldx #(1 * 4)
 -   sta sprite_data, x
@@ -56,8 +62,18 @@ reset:
     inx
     inx
     bne -
+    ;
+    ; misc
+    lda #30
+    sta paint_cursor_x
+    lda #26
+    sta paint_cursor_y
+    inc paint_color
 
-    wait_for_vblank
+    ; wait for start of VBlank
+    bit ppu_status
+-   bit ppu_status
+    bpl -
 
     ; reset ppu_addr/ppu_scroll latch
     bit ppu_status
@@ -65,8 +81,8 @@ reset:
     ; set BG palette
     lda #$3f
     sta ppu_addr
-    sty ppu_addr
     ldx #0
+    stx ppu_addr
 -   lda initial_palette_bg, x
     sta ppu_data
     inx
@@ -88,29 +104,39 @@ reset:
     ; clear name table 0 and attribute 0 ($400 bytes)
     lda #$20
     sta ppu_addr
-    sty ppu_addr
-    ldx #0
--   sty ppu_data
-    sty ppu_data
-    sty ppu_data
-    sty ppu_data
+    lda #$00
+    sta ppu_addr
+    tax
+-   sta ppu_data
+    sta ppu_data
+    sta ppu_data
+    sta ppu_data
     inx
     bne -
 
     ; clear VRAM address & scroll
-    sty ppu_addr
-    sty ppu_addr
-    sty ppu_scroll
-    sty ppu_scroll
+    lda #$00
+    sta ppu_addr
+    sta ppu_addr
+    sta ppu_scroll
+    sta ppu_scroll
 
-    wait_vblank_start
+    ; wait for start of VBlank
+    bit ppu_status
+-   bit ppu_status
+    bpl -
 
-    ; show background & sprites
-    lda #%00011110
+    ; show background and sprites on entire screen,
+    ; don't use R/G/B de-emphasis or grayscale mode
+    lda #$1e
     sta ppu_mask
 
-    ; enable NMI, use pattern table 1 for sprites
-    lda #%10001000
+    ; enable NMI,
+    ; use 8*8-pixel sprites,
+    ; use pattern table 0 for background and 1 for sprites,
+    ; use 1-byte VRAM address auto-increment,
+    ; use name table 0
+    lda #$88
     sta ppu_ctrl
 
     jmp main
@@ -125,10 +151,10 @@ initial_palette_spr:
     ; all subpalettes used for selected colors in palette editor
     ; first  one also used for cursors             (4th color = foreground)
     ; second one also used for palette editor text (4th color = foreground)
-    db default_color0, editor_bg_color, default_color0, default_color1
-    db default_color0, editor_bg_color, default_color1, editor_fg_color
-    db default_color0, editor_bg_color, default_color2, default_color0
-    db default_color0, editor_bg_color, default_color3, default_color0
+    db default_color0, editor_bg, default_color0, default_color1
+    db default_color0, editor_bg, default_color1, editor_text
+    db default_color0, editor_bg, default_color2, default_color0
+    db default_color0, editor_bg, default_color3, default_color0
 
 initial_sprite_data:
     ; Y position, tile, attributes (subpalette), X position
