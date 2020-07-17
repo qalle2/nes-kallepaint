@@ -61,10 +61,9 @@ nmi_paint:
     bit update_nt
     bpl +
 
-    ; address ($2000 + nt_offset)
-    clc
+    ; address ($2000 + nt_offset; high byte of nt_offset is 0-3)
     lda #$20
-    adc nt_offset + 1
+    ora nt_offset + 1
     sta ppu_addr
     lda nt_offset + 0
     sta ppu_addr
