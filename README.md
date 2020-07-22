@@ -16,41 +16,68 @@ Note: the Linux script `assemble` is intended for my personal use. Don't run it 
 
 ## Features
 * 64&times;56 "pixels" (4&times;4 actual pixels each)
-* four colors at the same time (plus the GUI colors)
-* palette editor
+* 13 colors at the same time from the NES master palette
 * 1&times;1-pixel or 2&times;2-pixel brush
+* attribute editor
+* palette editor
+
+Due to NES hardware, the following restrictions apply to use of colors:
+* There are four subpalettes with four colors each.
+* The first color is shared between all subpalettes.
+* If you think of the screen as a 16&times;16-pixel grid, each square can only use colors from one subpalette.
 
 ## How to use
-There are two modes.
+There are three modes. Press select at any time to cycle between them.
 
 ### Paint mode
 ![paint mode](paint1.png)
 
-The program starts in this mode.
+The program starts in this mode. You'll spend most of your time in it.
 
 Buttons:
 * up/down/left/right: move cursor
 * start: toggle between small (1&times;1-pixel) and large (2&times;2-pixel) brush
 * B: cycle through four paint colors
 * A: paint at cursor using selected color and brush
-* select: enter palette editor
+* select: switch to attribute edit mode
+
+### Attribute edit mode
+This mode looks the same as the paint mode, except that the cursor is a large (16&times;16-pixel) blinking square.
+
+Buttons:
+* up/down/left/right: move cursor
+* A: cycle through four subpalettes at cursor
+* select: switch to palette edit mode
+
+Note that pressing A has no visible effect on the image if you haven't painted anything on the selected square yet. (The default color is the same in every subpalette.)
 
 ### Palette edit mode
 ![palette edit mode](paint2.png)
 
-This mode also shows paint cursor coordinates (`x00`&hellip;`x63`, `y00`&hellip;`y55`).
+Indicators:
+* `X`: current horizontal position of paint/attribute cursor (`00`&hellip;`63`; never changes inside palette edit mode)
+* `Y`: current vertical position of paint/attribute cursor (`00`&hellip;`55`; never changes inside palette edit mode)
+* `P`: subpalette being edited (`0`&hellip;`3`)
+* `C`: NES color number of selected color in hexadecimal (`00`&hellip;`3F`)
+* colored squares: selected subpalette
+* blinking cursor: color being edited
 
 Buttons:
 * up/down: move cursor
 * left/right: decrement/increment ones of color number
 * B/A: decrement/increment 16s of color number
-* select: return to paint mode
+* start: cycle through four subpalettes (the topmost color is shared between all subpalettes)
+* select: switch to paint mode
 
 ## Technical info
 * mapper: NROM (iNES mapper number 0)
-* PRG ROM: 1 KiB (padded to the end of 16 KiB because of iNES file format limitations)
+* PRG ROM: 2 KiB (padded to the end of 16 KiB because of iNES file format limitations)
 * CHR ROM: 8 KiB
 * name table mirroring: horizontal (does not really matter)
 * save RAM: none
 * compatibility: NTSC and PAL
+
+## To do
+* Python script to convert an image file into a FCEUX movie that draws the image
+* test with other emulators
 

@@ -15,9 +15,9 @@
 ; --- PRG ROM --------------------------------------------------------------------------------------
 
     org $c000               ; last 16 KiB of PRG ROM (iNES format limitations)
-    pad $fc00               ; last 1 KiB of PRG ROM
+    pad $f800               ; last 2 KiB of PRG ROM
     include "init.asm"
-    include "main.asm"
+    include "mainloop.asm"
     include "nmi.asm"
     pad $fffa
     dw nmi, reset, $ffff    ; interrupt vectors (at the end of PRG ROM)

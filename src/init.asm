@@ -25,23 +25,24 @@ reset:
 -   bit ppu_status
     bpl -
 
-    ; clear zero page and nt_buffer
+    ; clear zero page, nt_at_buffer and vram_buffer
     lda #$00
     tax
     ldx #0
 -   sta $00, x
-    sta nt_buffer, x
-    sta nt_buffer + $100, x
-    sta nt_buffer + $200, x
-    sta nt_buffer + $300, x
+    sta nt_at_buffer, x
+    sta nt_at_buffer + $100, x
+    sta nt_at_buffer + $200, x
+    sta nt_at_buffer + $300, x
+    sta vram_buffer, x
     inx
     bne -
 
     ; initialize nonzero variables
     ;
     ; user palette
-    ldx #3
--   lda initial_palette_bg, x
+    ldx #(13 - 1)
+-   lda initial_user_palette, x
     sta user_palette, x
     dex
     bpl -
@@ -53,7 +54,7 @@ reset:
     dex
     bpl -
     ;
-    ; hide sprites except cursor (#0)
+    ; hide sprites except paint cursor (#0)
     lda #$ff
     ldx #(1 * 4)
 -   sta sprite_data, x
@@ -65,9 +66,9 @@ reset:
     ;
     ; misc
     lda #30
-    sta paint_cursor_x
+    sta cursor_x
     lda #26
-    sta paint_cursor_y
+    sta cursor_y
     inc paint_color
 
     ; wait for start of VBlank
@@ -81,12 +82,21 @@ reset:
     ; set BG palette
     lda #$3f
     sta ppu_addr
-    ldx #0
+    ldx #$00
     stx ppu_addr
--   lda initial_palette_bg, x
-    sta ppu_data
+    ldy user_palette + 0  ; background
+    ; loop: one round/subpalette
+-   sty ppu_data
+    lda user_palette + 1, x
     inx
-    cpx #4
+    sta ppu_data
+    lda user_palette + 1, x
+    inx
+    sta ppu_data
+    lda user_palette + 1, x
+    inx
+    sta ppu_data
+    cpx #12
     bne -
 
     ; set sprite palettes
@@ -114,11 +124,12 @@ reset:
     inx
     bne -
 
-    ; clear VRAM address & scroll
+    ; clear VRAM address and set scroll
     lda #$00
     sta ppu_addr
     sta ppu_addr
     sta ppu_scroll
+    lda #(256 - 8)
     sta ppu_scroll
 
     ; wait for start of VBlank
@@ -139,40 +150,65 @@ reset:
     lda #$88
     sta ppu_ctrl
 
-    jmp main
+    jmp main_loop
 
 ; --------------------------------------------------------------------------------------------------
 
-initial_palette_bg:
-    ; first background subpalette (paint area)
-    db default_color0, default_color1, default_color2, default_color3
+initial_user_palette:
+    ; 13 (1 + 4 * 3) colors
+    db defcol_bg                     ; background
+    db defcol0a, defcol0b, defcol0c  ; subpalette 0
+    db defcol1a, defcol1b, defcol1c  ; subpalette 1
+    db defcol2a, defcol2b, defcol2c  ; subpalette 2
+    db defcol3a, defcol3b, defcol3c  ; subpalette 3
 
 initial_palette_spr:
     ; all subpalettes used for selected colors in palette editor
-    ; first  one also used for cursors             (4th color = foreground)
-    ; second one also used for palette editor text (4th color = foreground)
-    db default_color0, editor_bg, default_color0, default_color1
-    db default_color0, editor_bg, default_color1, editor_text
-    db default_color0, editor_bg, default_color2, default_color0
-    db default_color0, editor_bg, default_color3, default_color0
+    ; 1st one also used for all cursors         (4th color = foreground)
+    ; 2nd one also used for palette editor text (4th color = foreground)
+    db defcol_bg, editor_bg, defcol_bg, defcol0a
+    db defcol_bg, editor_bg, defcol0a,  editor_text
+    db defcol_bg, editor_bg, defcol0b,  defcol_bg
+    db defcol_bg, editor_bg, defcol0c,  defcol_bg
 
 initial_sprite_data:
-    ; Y position, tile, attributes (subpalette), X position
+    ; Y position, tile, attributes, X position
 
-    db        $ff, $10, $00, 0       ; #0:  cursor (paint/palette editor)
-    db 11 * 8 - 1, $12, $01, 14 * 8  ; #1:  "X"
-    db 11 * 8 - 1, $00, $01, 15 * 8  ; #2:  tens of X position
-    db 11 * 8 - 1, $00, $01, 16 * 8  ; #3:  ones of X position
-    db 12 * 8 - 1, $13, $01, 14 * 8  ; #4:  "Y"
-    db 12 * 8 - 1, $00, $01, 15 * 8  ; #5:  tens of Y position
-    db 12 * 8 - 1, $00, $01, 16 * 8  ; #6:  ones of Y position
-    db 13 * 8 - 1, $0c, $01, 14 * 8  ; #7:  "C"
-    db 13 * 8 - 1, $00, $01, 15 * 8  ; #8:  16s  of color number
-    db 13 * 8 - 1, $00, $01, 16 * 8  ; #9:  ones of color number
-    db 14 * 8 - 1, $14, $00, 15 * 8  ; #10: selected color 0
-    db 15 * 8 - 1, $14, $01, 15 * 8  ; #11: selected color 1
-    db 16 * 8 - 1, $14, $02, 15 * 8  ; #12: selected color 2
-    db 17 * 8 - 1, $14, $03, 15 * 8  ; #13: selected color 3
+    ; paint mode
+    db $ff, $10, $00, 0  ; #0: cursor
+
+    ; attribute editor
+    db $ff, $12, $00, 0  ; #1: cursor top left
+    db $ff, $12, $40, 0  ; #2: cursor top right
+    db $ff, $12, $80, 0  ; #3: cursor bottom left
+    db $ff, $12, $c0, 0  ; #4: cursor bottom right
+
+    ; palette editor
+    db        $ff, $11, $00, 15 * 8  ; #5:  cursor
+    db 11 * 8 - 1, $14, $01, 14 * 8  ; #6:  "X"
+    db 11 * 8 - 1, $00, $01, 15 * 8  ; #7:  X position - tens
+    db 11 * 8 - 1, $00, $01, 16 * 8  ; #8:  X position - ones
+    db 12 * 8 - 1, $15, $01, 14 * 8  ; #9:  "Y"
+    db 12 * 8 - 1, $00, $01, 15 * 8  ; #10: Y position - tens
+    db 12 * 8 - 1, $00, $01, 16 * 8  ; #11: Y position - ones
+    db 13 * 8 - 1, $16, $01, 14 * 8  ; #12: "P"
+    db 13 * 8 - 1, $00, $01, 15 * 8  ; #13: subpalette number
+    db 14 * 8 - 1, $0c, $01, 14 * 8  ; #14: "C"
+    db 14 * 8 - 1, $00, $01, 15 * 8  ; #15: color number - 16s
+    db 14 * 8 - 1, $00, $01, 16 * 8  ; #16: color number - ones
+    db 15 * 8 - 1, $17, $00, 15 * 8  ; #17: color 0
+    db 16 * 8 - 1, $17, $01, 15 * 8  ; #18: color 1
+    db 17 * 8 - 1, $17, $02, 15 * 8  ; #19: color 2
+    db 18 * 8 - 1, $17, $03, 15 * 8  ; #20: color 3
+    db 13 * 8 - 1, $13, $01, 16 * 8  ; #21: cover (to right of subpal number)
+    db 15 * 8 - 1, $13, $01, 14 * 8  ; #22: cover (to left of color 0)
+    db 16 * 8 - 1, $13, $01, 14 * 8  ; #23: color (to left of color 1)
+    db 17 * 8 - 1, $13, $01, 14 * 8  ; #24: color (to left of color 2)
+    db 18 * 8 - 1, $13, $01, 14 * 8  ; #25: color (to left of color 3)
+    db 15 * 8 - 1, $13, $01, 16 * 8  ; #26: cover (to right of color 0)
+    db 16 * 8 - 1, $13, $01, 16 * 8  ; #27: color (to right of color 1)
+    db 17 * 8 - 1, $13, $01, 16 * 8  ; #28: color (to right of color 2)
+    db 18 * 8 - 1, $13, $01, 16 * 8  ; #29: color (to right of color 3)
 
 initial_sprite_data_end:
 

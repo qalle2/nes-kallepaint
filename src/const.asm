@@ -21,44 +21,58 @@ joypad2    equ $4017
 ; Note: all address variables (2 bytes) are little endian (low byte, high byte).
 
 ; RAM
-user_palette       equ $00    ; 4 bytes (each $00-$3f)
-nt_offset          equ $04    ; 2 bytes (offset to name table 0 and nt_buffer)
-nt_buffer_address  equ $06    ; 2 bytes (address within nt_buffer)
-in_palette_editor  equ $0a    ; flag (false = in paint mode, true = in palette edit mode)
-run_main_loop      equ $0b    ; flag (main loop allowed to run?)
-update_nt          equ $0c    ; flag (update name table?)
-joypad_status      equ $0d    ; first joypad status (bits: A B select start up down left right)
-prev_joypad_status equ $0e    ; first joypad status on previous frame
-delay_left         equ $0f    ; cursor move delay left (paint mode)
-paint_cursor_type  equ $10    ; cursor type (paint mode; 0=small, 1=big)
-paint_cursor_x     equ $11    ; cursor X position (paint mode; 0-63)
-paint_cursor_y     equ $12    ; cursor Y position (paint mode; 0-47)
-paint_color        equ $13    ; selected color (paint mode; 0-3)
-palette_cursor     equ $14    ; cursor position (palette edit mode; 0-3)
-blink_timer        equ $15    ; cursor blink timer (palette edit mode)
-temp               equ $16    ; temporary
-sprite_data        equ $0200  ; $100 bytes (first paint mode sprites, then palette editor sprites)
-nt_buffer          equ $0300  ; $400 bytes (copy of name table 0 and attribute table 0; must be $xx00)
+nt_at_offset       equ $00    ; 2 bytes (offset to name/attribute table 0 and nt_at_buffer)
+nt_at_buffer_addr  equ $02    ; 2 bytes (address within nt_at_buffer)
+mode               equ $04    ; 0 = paint, 1 = attribute editor, 2 = palette editor
+run_main_loop      equ $05    ; flag (true = main loop allowed to run)
+joypad_status      equ $06    ; first joypad status (bits: A B select start up down left right)
+prev_joypad_status equ $07    ; first joypad status on previous frame
+delay_left         equ $08    ; cursor move delay left (paint mode)
+paint_cursor_type  equ $09    ; cursor type (paint mode; 0=small, 1=big)
+cursor_x           equ $0a    ; cursor X position (paint/attribute edit mode; 0-63)
+cursor_y           equ $0b    ; cursor Y position (paint/attribute edit mode; 0-55)
+paint_color        equ $0c    ; selected color (paint mode; 0-3)
+palette_cursor     equ $0d    ; cursor position (palette edit mode; 0-3)
+palette_subpal     equ $0e    ; selected subpalette (palette edit mode; 0-3)
+blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
+vram_buffer_pos    equ $10    ; offset of first free byte in vram_buffer (main loop)
+bitop_temp         equ $11    ; temp var for bitops
+user_palette       equ $12    ; 13 bytes (1 + 4 * 3; each $00-$3f)
+sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
+nt_at_buffer       equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
+vram_buffer        equ $0700  ; $100 bytes (what to update in VRAM on next VBlank; addr, byte,
+                              ; addr, byte, ...; addr's are big endian; $00xx = end of data)
 
 ; --- Non-addresses --------------------------------------------------------------------------------
 
 ; joypad bitmasks
-button_a      equ $80
-button_b      equ $40
-button_select equ $20
-button_start  equ $10
-button_up     equ $08
-button_down   equ $04
-button_left   equ $02
-button_right  equ $01
+button_a      equ %10000000
+button_b      equ %01000000
+button_select equ %00100000
+button_start  equ %00010000
+button_up     equ %00001000
+button_down   equ %00000100
+button_left   equ %00000010
+button_right  equ %00000001
 
-; misc
-default_color0 equ $30  ; default palette - color 0 (white)
-default_color1 equ $16  ; default palette - color 1 (red)
-default_color2 equ $1a  ; default palette - color 2 (green)
-default_color3 equ $02  ; default palette - color 3 (blue)
-editor_bg      equ $0f  ; palette editor background color (black)
-editor_text    equ $30  ; palette editor text color (white)
-blink_rate     equ 4    ; palette editor cursor blink rate (0=fastest, 7=slowest)
-delay          equ 10   ; paint cursor move repeat delay (frames)
+; default user palette
+defcol_bg equ $0f  ; background (all subpalettes)
+defcol0a  equ $15
+defcol0b  equ $25
+defcol0c  equ $35
+defcol1a  equ $18
+defcol1b  equ $28
+defcol1c  equ $38
+defcol2a  equ $1b
+defcol2b  equ $2b
+defcol2c  equ $3b
+defcol3a  equ $12
+defcol3b  equ $22
+defcol3c  equ $32
+
+; other
+editor_bg   equ $0f  ; palette editor background color / blinking cursor 1 (black)
+editor_text equ $30  ; palette editor text color / blinking cursor 2 (white)
+blink_rate  equ 4    ; attribute/palette editor cursor blink rate (0=fastest, 7=slowest)
+delay       equ 10   ; paint cursor move repeat delay (frames)
 
