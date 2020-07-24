@@ -178,7 +178,37 @@ main_paint_part2:
     ora #$10
     sta sprite_data + 0 + 1
 
-    ; tell NMI to update paint color to cursor (6502 has sta abs,y but no lda zp,y)
+    ; get correct color for cursor (TODO: DRY)
+    ;
+    ; get address within attribute table buffer (nt_at_buffer_addr)
+    jsr compute_attr_offset_and_addr
+    ;
+    ; required shift count for attribute byte (0/2/4/6) -> X
+    jsr get_pos_in_attr_byte
+    asl
+    tax
+    ;
+    ; read attribute byte, shift relevant bits to positions 1-0, clear other bits
+    ldy #0
+    lda (nt_at_buffer_addr), y
+    cpx #0
+    beq +
+-   lsr
+    dex
+    bne -
++   and #%00000011
+    ;
+    ; compute cursor color and push it
+    asl
+    asl
+    ora paint_color
+    tax
+    lda user_palette_offsets, x
+    tax
+    lda user_palette, x
+    pha
+
+    ; tell NMI to update paint color to cursor
     ;
     ldy vram_buffer_pos
     ;
@@ -188,8 +218,7 @@ main_paint_part2:
     lda #$13
     sta vram_buffer, y
     iny
-    ldx paint_color
-    lda user_palette, x
+    pla
     sta vram_buffer, y
     iny
     ;
@@ -303,15 +332,23 @@ overwrite_byte:
     rts
 
 solid_color_tiles:
-    ; tiles of solid color 0/1/2/3
-    hex 00 55 aa ff
+    ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
+    db %00000000
+    db %01010101
+    db %10101010
+    db %11111111
 
 nt_and_masks:
-    hex 3f cf f3 fc
+    ; clear one pixel (2 bits)
+    db %00111111
+    db %11001111
+    db %11110011
+    db %11111100
 
 nt_or_masks:
-    hex 00 40 80 c0
-    hex 00 10 20 30
-    hex 00 04 08 0c
-    hex 00 01 02 03
+    ; set color of one pixel (2 bits)
+    db %00000000, %01000000, %10000000, %11000000
+    db %00000000, %00010000, %00100000, %00110000
+    db %00000000, %00000100, %00001000, %00001100
+    db %00000000, %00000001, %00000010, %00000011
 

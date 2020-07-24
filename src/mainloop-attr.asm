@@ -122,45 +122,13 @@ prepare_attr_change:
     ; Prepare to cycle attribute value (0 -> 1 -> 2 -> 3 -> 0) of selected 2*2-tile block.
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
-    ; compute offset of byte to change
-    ;   bits of cursor_y    : 00ABCD00
-    ;   bits of cursor_x    : 00abcd00
-    ;   bits of nt_at_offset: $3c0 + 00ABCabc = 00000011 11ABCabc
-    ;
-    ; low byte
-    lda cursor_x
-    lsr
-    lsr
-    lsr
-    sta bitop_temp
-    lda cursor_y
-    and #$38
-    ora #$c0
-    ora bitop_temp
-    sta nt_at_offset + 0
-    ;
-    ; high byte
-    lda #$03
-    sta nt_at_offset + 1
-
-    ; address to change in nt_at_buffer (nt_at_buffer is at $xx00)
-    lda nt_at_offset + 0
-    sta nt_at_buffer_addr + 0
-    clc
-    lda #>nt_at_buffer
-    adc nt_at_offset + 1
-    sta nt_at_buffer_addr + 1
+    ; get nt_at_offset and nt_at_buffer_addr
+    jsr compute_attr_offset_and_addr
 
     ; get byte to write (read old byte and replace two bits)
     ;
-    ; position within byte (0-3) -> X
-    ; bits: cursor_y = 00ABCD00, cursor_x = 00abcd00 -> position = 000000Dd
-    lda cursor_x
-    lsr
-    and #%00000010
-    ora cursor_y
-    lsr
-    and #%00000011
+    ; position within attribute byte -> X
+    jsr get_pos_in_attr_byte  ; 0-3 to A
     tax
     ;
     ; read old byte, increment correct bits, clear other bits, store
@@ -197,6 +165,58 @@ prepare_attr_change:
     ;
     stx vram_buffer_pos
 
+    rts
+
+compute_attr_offset_and_addr:
+    ; Compute nt_at_offset and nt_at_buffer_addr in context of an *attribute* byte.
+    ; (This sub is also used in paint mode.)
+
+    ; bits of cursor_y    : 00ABCDEF
+    ; bits of cursor_x    : 00abcdef
+    ; bits of nt_at_offset: $3c0 + 00ABCabc = 00000011 11ABCabc
+    ;
+    ; low byte
+    lda cursor_x
+    lsr
+    lsr
+    lsr
+    sta bitop_temp
+    lda cursor_y
+    and #$38
+    ora #$c0
+    ora bitop_temp
+    sta nt_at_offset + 0
+    ;
+    ; high byte
+    lda #$03
+    sta nt_at_offset + 1
+
+    ; nt_at_buffer_addr (nt_at_buffer must start at $xx00)
+    lda nt_at_offset + 0
+    sta nt_at_buffer_addr + 0
+    clc
+    lda #>nt_at_buffer
+    adc nt_at_offset + 1
+    sta nt_at_buffer_addr + 1
+
+    rts
+
+get_pos_in_attr_byte:
+    ; Get position within attribute byte.
+    ; 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right.
+    ; Bits:
+    ;   cursor_y: 00ABCDEF
+    ;   cursor_x: 00abcdef
+    ;   A       : 000000Dd
+
+    lda cursor_y
+    and #%00000100
+    sta bitop_temp
+    lda cursor_x
+    and #%00000100
+    lsr
+    ora bitop_temp
+    lsr
     rts
 
 attr_byte_increment:
