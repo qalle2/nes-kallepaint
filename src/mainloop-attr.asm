@@ -67,8 +67,8 @@ enter_palette_editor:
     dex
     bpl -
 
-    ; show palette editor sprites (#5-)
-    ldx #(initial_sprite_data_end - initial_sprite_data - 6 * 4)
+    ; show palette editor sprites (#5-#29)
+    ldx #(24 * 4)
 -   lda initial_sprite_data + 5 * 4 + 0, x
     sta sprite_data + 5 * 4 + 0, x
     dex
@@ -125,30 +125,26 @@ prepare_attr_change:
     ; get nt_at_offset and nt_at_buffer_addr
     jsr compute_attr_offset_and_addr
 
-    ; get byte to write (read old byte and replace two bits)
-    ;
-    ; position within attribute byte -> X
+    ; (position within attribute byte) * 2 -> X (0/2/4/6)
     jsr get_pos_in_attr_byte  ; 0-3 to A
+    asl
     tax
     ;
-    ; read old byte, increment correct bits, clear other bits, store
+    ; increment correct bit pair in byte (00 -> 01 -> 10 -> 11 -> 00)
+    ; - the more significant bit is flipped if the less significant bit is set
+    ; - the less significant bit is always flipped
     ldy #0
     lda (nt_at_buffer_addr), y
-    clc
-    adc attr_byte_increment, x
+    pha
     and attr_byte_masks, x
-    sta bitop_temp
-    ;
-    ; read old byte again, clear bits to change, get them from temp var
-    lda (nt_at_buffer_addr), y
-    and attr_byte_inverse_masks, x
-    ora bitop_temp
-    ;
-    ; write new byte and push it
-    sta (nt_at_buffer_addr), y
+    beq +
+    inx
++   pla
+    eor attr_byte_masks, x
+++  sta (nt_at_buffer_addr), y
     pha
 
-    ; also tell NMI to update attribute table 0 at $2000 + nt_at_offset
+    ; tell NMI to update attribute table 0 at $2000 + nt_at_offset
     ;
     ldx vram_buffer_pos
     ;
@@ -167,29 +163,33 @@ prepare_attr_change:
 
     rts
 
+attr_byte_masks:
+    ; AND/XOR masks (LSB or both LSB and MSB of each attribute block)
+    db %00000001, %00000011
+    db %00000100, %00001100
+    db %00010000, %00110000
+    db %01000000, %11000000
+
 compute_attr_offset_and_addr:
     ; Compute nt_at_offset and nt_at_buffer_addr in context of an *attribute* byte.
     ; (This sub is also used in paint mode.)
 
-    ; bits of cursor_y    : 00ABCDEF
-    ; bits of cursor_x    : 00abcdef
-    ; bits of nt_at_offset: $3c0 + 00ABCabc = 00000011 11ABCabc
+    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
+    ; -> nt_at_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
     ;
-    ; low byte
+    lda #%00000011
+    sta nt_at_offset + 1
+    ;
     lda cursor_x
     lsr
     lsr
     lsr
     sta bitop_temp
     lda cursor_y
-    and #$38
-    ora #$c0
+    and #%00111000
+    ora #%11000000
     ora bitop_temp
     sta nt_at_offset + 0
-    ;
-    ; high byte
-    lda #$03
-    sta nt_at_offset + 1
 
     ; nt_at_buffer_addr (nt_at_buffer must start at $xx00)
     lda nt_at_offset + 0
@@ -202,12 +202,9 @@ compute_attr_offset_and_addr:
     rts
 
 get_pos_in_attr_byte:
-    ; Get position within attribute byte.
+    ; Get position within attribute byte. (This sub is also used in paint mode.)
+    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef -> A = 000000Dd
     ; 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right.
-    ; Bits:
-    ;   cursor_y: 00ABCDEF
-    ;   cursor_x: 00abcdef
-    ;   A       : 000000Dd
 
     lda cursor_y
     and #%00000100
@@ -218,15 +215,6 @@ get_pos_in_attr_byte:
     ora bitop_temp
     lsr
     rts
-
-attr_byte_increment:
-    db %00000001, %00000100, %00010000, %01000000
-
-attr_byte_masks:
-    db %00000011, %00001100, %00110000, %11000000
-
-attr_byte_inverse_masks:
-    db %11111100, %11110011, %11001111, %00111111
 
 ; --------------------------------------------------------------------------------------------------
 
@@ -256,7 +244,7 @@ attr_left:
     sec
     sbc #4
 attr_store_horz:
-    and #$3f
+    and #%00111111
     sta cursor_x
     rts
 

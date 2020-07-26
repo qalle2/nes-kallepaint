@@ -19,7 +19,7 @@ main_loop_paint_mode:
     ldx paint_color
     inx
     txa
-    and #$03
+    and #%00000011
     sta paint_color
 
     ; if start pressed, toggle between small and big cursor; if big, make coordinates even
@@ -27,7 +27,7 @@ main_loop_paint_mode:
     and #button_start
     beq +
     lda paint_cursor_type
-    eor #$01
+    eor #%00000001
     sta paint_cursor_type
     beq +
     lsr cursor_x
@@ -67,23 +67,12 @@ enter_attribute_editor:
     lda #$ff
     sta sprite_data + 0 + 0
 
-    ; show attribute editor sprites (#1-#4)
-    lda #$ff
-    ldx #(3 * 4)
--   lda initial_sprite_data + 4 + 0, x
-    sta sprite_data + 4 + 0, x
-    dex
-    dex
-    dex
-    dex
-    bpl -
-
     ; make cursor coordinates a multiple of four
     lda cursor_x
-    and #$3c
+    and #%00111100
     sta cursor_x
     lda cursor_y
-    and #$3c
+    and #%00111100
     sta cursor_y
 
     ; switch mode
@@ -95,7 +84,6 @@ enter_attribute_editor:
 
 paint_check_arrows:
     ; React to arrows (including diagonal directions).
-    ; Reads: joypad_status, cursor_x, cursor_y, paint_cursor_type
     ; Changes: cursor_x, cursor_y
 
     lda joypad_status
@@ -174,11 +162,17 @@ main_paint_part2:
     sta sprite_data + 0 + 0
     ;
     ; tile
-    lda paint_cursor_type
-    ora #$10
-    sta sprite_data + 0 + 1
+    lda #tile_smallcur
+    ldx paint_cursor_type
+    beq +
+    lda #tile_largecur
++   sta sprite_data + 0 + 1
 
-    ; get correct color for cursor (TODO: DRY)
+    ; get correct color for cursor
+    ;
+    ; if color 0 of any subpal, no need to read attribute table buffer
+    ldx paint_color
+    beq ++
     ;
     ; get address within attribute table buffer (nt_at_buffer_addr)
     jsr compute_attr_offset_and_addr
@@ -203,9 +197,7 @@ main_paint_part2:
     asl
     ora paint_color
     tax
-    lda user_palette_offsets, x
-    tax
-    lda user_palette, x
+++  lda user_palette, x
     pha
 
     ; tell NMI to update paint color to cursor
@@ -233,11 +225,8 @@ prepare_paint:
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
     ; compute offset of byte to change
-    ;   bits of cursor_y    : 00ABCDEF
-    ;   bits of cursor_x    : 00abcdef
-    ;   bits of nt_at_offset: 000000AB CDEabcde
+    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef -> nt_at_offset = 000000AB CDEabcde
     ;
-    ; high byte
     lda cursor_y
     lsr
     lsr
@@ -245,9 +234,8 @@ prepare_paint:
     lsr
     sta nt_at_offset + 1
     ;
-    ; low byte
     lda cursor_y
-    and #$0e
+    and #%00001110
     asl
     asl
     asl
@@ -285,10 +273,10 @@ prepare_paint:
     ;
     ; position within tile (0-3) -> A, X
     lda cursor_x
-    ror
+    lsr
     lda cursor_y
     rol
-    and #$03
+    and #%00000011
     tax
     ;
     ; (position within tile) * 4 + paint_color -> Y
@@ -297,13 +285,9 @@ prepare_paint:
     ora paint_color
     tay
     ;
-    ; pull old byte
+    ; pull old byte, clear bits to replace, write new bits
     pla
-    ;
-    ; clear bits to replace
     and nt_and_masks, x
-    ;
-    ; write new bits
     ora nt_or_masks, y
 
 overwrite_byte:
@@ -312,7 +296,7 @@ overwrite_byte:
     sta (nt_at_buffer_addr), y
     pha
 
-    ; also tell NMI to update name table 0 at $2000 + nt_at_offset
+    ; tell NMI to update name table 0 at $2000 + nt_at_offset
     ;
     ldx vram_buffer_pos
     ;
@@ -333,17 +317,11 @@ overwrite_byte:
 
 solid_color_tiles:
     ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
-    db %00000000
-    db %01010101
-    db %10101010
-    db %11111111
+    db %00000000, %01010101, %10101010, %11111111
 
 nt_and_masks:
     ; clear one pixel (2 bits)
-    db %00111111
-    db %11001111
-    db %11110011
-    db %11111100
+    db %00111111, %11001111, %11110011, %11111100
 
 nt_or_masks:
     ; set color of one pixel (2 bits)

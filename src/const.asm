@@ -37,7 +37,7 @@ palette_subpal     equ $0e    ; selected subpalette (palette edit mode; 0-3)
 blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
 vram_buffer_pos    equ $10    ; offset of first free byte in vram_buffer (main loop)
 bitop_temp         equ $11    ; temp var for bitops
-user_palette       equ $12    ; 13 bytes (1 + 4 * 3; each $00-$3f)
+user_palette       equ $12    ; 16 bytes (each $00-$3f; bytes 4/8/12 are unused)
 sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
 nt_at_buffer       equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
 vram_buffer        equ $0700  ; $100 bytes (what to update in VRAM on next VBlank; addr, byte,
@@ -69,6 +69,17 @@ defcol2c  equ $3b
 defcol3a  equ $12
 defcol3b  equ $22
 defcol3c  equ $32
+
+; sprite tile indexes
+; note: hexadecimal digits must be at $00-$0f
+tile_smallcur equ $10  ; cursor - small
+tile_largecur equ $11  ; cursor - large
+tile_attrcur  equ $12  ; cursor - corner of attribute cursor
+tile_cover    equ $13  ; cover (palette editor)
+tile_x        equ $14  ; "X"
+tile_y        equ $15  ; "Y"
+tile_p        equ $16  ; "P"
+tile_colorind equ $17  ; color indicator (palette editor)
 
 ; other
 editor_bg   equ $0f  ; palette editor background color / blinking cursor 1 (black)

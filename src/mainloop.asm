@@ -20,7 +20,7 @@ main_loop:
     stx joypad1
 -   clc
     lda joypad1
-    and #$03
+    and #%00000011
     beq +
     sec
 +   rol joypad_status

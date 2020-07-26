@@ -30,9 +30,9 @@ main_loop_palette_editor:
 enter_paint_mode:
     ; Switch to paint mode.
 
-    ; hide sprites from #5 on (#1-#4 are already hidden)
+    ; hide palette editor sprites (#5-#29)
     lda #$ff
-    ldx #(initial_sprite_data_end - initial_sprite_data - 6 * 4)
+    ldx #(24 * 4)
 -   sta sprite_data + 5 * 4 + 0, x
     dex
     dex
@@ -75,12 +75,12 @@ pal_down:
 ; --------------------------------------------------------------------------------------------------
 
 pal_minus1:
-    jsr get_user_pal_offset  ; to X
+    jsr get_user_pal_offset  ; A, X
     ldy user_palette, x
     dey
     jmp +
 pal_plus1:
-    jsr get_user_pal_offset  ; to X
+    jsr get_user_pal_offset  ; A, X
     ldy user_palette, x
     iny
 +   tya
@@ -93,14 +93,14 @@ pal_plus1:
     bpl main_loop_palette_editor_part2  ; unconditional
 
 pal_minus16:
-    jsr get_user_pal_offset  ; to X
+    jsr get_user_pal_offset  ; A, X
     ldy user_palette, x
     tya
     sec
     sbc #$10
     jmp +
 pal_plus16:
-    jsr get_user_pal_offset  ; to X
+    jsr get_user_pal_offset  ; A, X
     ldy user_palette, x
     tya
     clc
@@ -125,7 +125,7 @@ main_loop_palette_editor_part2:
 
     ; update tiles of color number 16s and ones
     ;
-    jsr get_user_pal_offset
+    jsr get_user_pal_offset  ; A, X
     ;
     lda user_palette, x
     lsr
@@ -147,19 +147,10 @@ main_loop_palette_editor_part2:
     lda #$3f
     sta vram_buffer, y
     iny
-    ;
-    lda palette_cursor
-    beq +
-    lda palette_subpal
-    asl
-    asl
-    ora palette_cursor
-+   sta vram_buffer, y
+    jsr get_user_pal_offset  ; A, X
+    sta vram_buffer, y
     iny
     ;
-    tax
-    lda user_palette_offsets, x
-    tax
     lda user_palette, x
     sta vram_buffer, y
     iny
@@ -169,7 +160,6 @@ main_loop_palette_editor_part2:
     lda #$3f
     sta vram_buffer, y
     iny
-    ;
     lda #$12
     sta vram_buffer, y
     iny
@@ -182,13 +172,12 @@ main_loop_palette_editor_part2:
     ;
     lda palette_subpal
     asl
-    adc palette_subpal  ; carry is always clear
+    asl
     tax
     ;
     lda #$3f
     sta vram_buffer, y
     iny
-    ;
     lda #$16
     sta vram_buffer, y
     iny
@@ -202,7 +191,6 @@ main_loop_palette_editor_part2:
     lda #$3f
     sta vram_buffer, y
     iny
-    ;
     lda #$1a
     sta vram_buffer, y
     iny
@@ -216,7 +204,6 @@ main_loop_palette_editor_part2:
     lda #$3f
     sta vram_buffer, y
     iny
-    ;
     lda #$1e
     sta vram_buffer, y
     iny
@@ -232,22 +219,17 @@ main_loop_palette_editor_part2:
 ; --------------------------------------------------------------------------------------------------
 
 get_user_pal_offset:
-    ; get offset to user_palette:
-    ; user_palette_offsets[palette_subpal * 4 + palette_cursor] -> X
+    ; Get offset to user_palette or VRAM $3f00-$3f0f.
+    ;   if palette_cursor = 0: 0
+    ;   else:                  palette_subpal * 4 + palette_cursor
+    ; Out: A, X
 
+    lda palette_cursor
+    beq +
     lda palette_subpal
     asl
     asl
     ora palette_cursor
-    tax
-    lda user_palette_offsets, x
-    tax
++   tax
     rts
-
-user_palette_offsets:
-    ; offset to VRAM $3f00-$3f0f -> offset to user_palette (1 + 4 * 3 bytes)
-    db 0,  1,  2,  3
-    db 0,  4,  5,  6
-    db 0,  7,  8,  9
-    db 0, 10, 11, 12
 
