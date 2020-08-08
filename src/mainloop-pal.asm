@@ -1,10 +1,10 @@
 ; Kalle Paint - main loop - palette edit mode
 
-main_loop_palette_editor:
+palette_edit_mode:
     ; ignore buttons if anything was pressed on previous frame
     lda prev_joypad_status
     beq +
-    jmp main_loop_palette_editor_part2
+    jmp palette_edit_mode_part2
 
 +   lda joypad_status
     lsr
@@ -23,39 +23,35 @@ main_loop_palette_editor:
     bcs pal_minus16       ; B
     bne pal_plus16        ; A
 
-    jmp main_loop_palette_editor_part2
+    jmp palette_edit_mode_part2
 
 ; --------------------------------------------------------------------------------------------------
 
 enter_paint_mode:
     ; Switch to paint mode.
 
-    ; hide palette editor sprites (#5-#29)
-    lda #$ff
-    ldx #(24 * 4)
--   sta sprite_data + 5 * 4 + 0, x
-    dex
-    dex
-    dex
-    dex
-    bpl -
+    ; hide palette editor sprites
+    ldx #(5 * 4)
+    ldy #25
+    jsr hide_sprites  ; X=first*4, Y=count
 
+    ; switch mode
     lda #0
     sta mode
+
     rts
 
 ; --------------------------------------------------------------------------------------------------
 
 pal_cycle_subpal:
-    ; Cycle between subpalettes (0 -> 1 -> 2 -> 3 -> 0) and update tile of number sprite.
+    ; Cycle between subpalettes (0 -> 1 -> 2 -> 3 -> 0).
 
     lda palette_subpal
     clc
     adc #1
     and #%00000011
     sta palette_subpal
-    sta sprite_data + 13 * 4 + 1
-    jmp main_loop_palette_editor_part2
+    bpl palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
@@ -70,7 +66,7 @@ pal_down:
     and #%00000011
     sta palette_cursor
     tax
-    bpl main_loop_palette_editor_part2  ; unconditional
+    bpl palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
@@ -90,7 +86,7 @@ pal_plus1:
     and #%00110000
     ora bitop_temp
     sta user_palette, x
-    bpl main_loop_palette_editor_part2  ; unconditional
+    bpl palette_edit_mode_part2  ; unconditional
 
 pal_minus16:
     jsr get_user_pal_offset  ; A, X
@@ -111,10 +107,13 @@ pal_plus16:
 
 ; --------------------------------------------------------------------------------------------------
 
-main_loop_palette_editor_part2:
-    ldx palette_cursor
+palette_edit_mode_part2:
+    ; update tile of selected subpalette
+    lda palette_subpal
+    sta sprite_data + 13 * 4 + 1
 
     ; update cursor Y position
+    ldx palette_cursor
     txa
     asl
     asl
@@ -143,93 +142,52 @@ main_loop_palette_editor_part2:
     ldy vram_buffer_pos
     ;
     ; selected color in selected subpal -> background palette
-    ;
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     jsr get_user_pal_offset  ; A, X
-    sta vram_buffer, y
-    iny
-    ;
+    a_to_vram_buffer
     lda user_palette, x
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
     ; 1st color of all user subpals -> 3rd color of 1st sprite subpal
-    ;
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     lda #$12
-    sta vram_buffer, y
-    iny
-    ;
+    a_to_vram_buffer
     lda user_palette + 0
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
-    ; 2nd color of selected user subpal -> 3rd color of 2nd sprite subpal
-    ;
+    ; offset of selected subpalette in user_palette -> X
     lda palette_subpal
     asl
     asl
     tax
     ;
+    ; 2nd color of selected user subpal -> 3rd color of 2nd sprite subpal
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     lda #$16
-    sta vram_buffer, y
-    iny
-    ;
+    a_to_vram_buffer
     lda user_palette + 1, x
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
-    ; 3rd color of selected user subpal -> 3rd color of 3rd sprite subpal (use X from before)
-    ;
+    ; 3rd color of selected user subpal -> 3rd color of 3rd sprite subpal
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     lda #$1a
-    sta vram_buffer, y
-    iny
-    ;
+    a_to_vram_buffer
     lda user_palette + 2, x
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
-    ; 4th color of selected user subpal -> 3rd color of 4th sprite subpal (use X from before)
-    ;
+    ; 4th color of selected user subpal -> 3rd color of 4th sprite subpal
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     lda #$1e
-    sta vram_buffer, y
-    iny
-    ;
+    a_to_vram_buffer
     lda user_palette + 3, x
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
     sty vram_buffer_pos
 
-    rts
-
-; --------------------------------------------------------------------------------------------------
-
-get_user_pal_offset:
-    ; Get offset to user_palette or VRAM $3f00-$3f0f.
-    ;   if palette_cursor = 0: 0
-    ;   else:                  palette_subpal * 4 + palette_cursor
-    ; Out: A, X
-
-    lda palette_cursor
-    beq +
-    lda palette_subpal
-    asl
-    asl
-    ora palette_cursor
-+   tax
     rts
 

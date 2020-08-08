@@ -19,18 +19,14 @@ nmi:
 
     ; update VRAM from vram_buffer
     ; format: addr_hi (0 = terminator), addr_lo, byte, ...
-    ;
-    ldx #0
--   lda vram_buffer, x
+    ldy #$ff
+-   a_from_vram_buffer
     beq +
     sta ppu_addr
-    inx
-    lda vram_buffer, x
+    a_from_vram_buffer
     sta ppu_addr
-    inx
-    lda vram_buffer, x
+    a_from_vram_buffer
     sta ppu_data
-    inx
     jmp -
 +
 

@@ -1,6 +1,6 @@
 ; Kalle Paint - main loop - attribute edit mode
 
-main_loop_attribute_editor:
+attribute_edit_mode:
     ; ignore buttons if anything was pressed on previous frame
     lda prev_joypad_status
     bne attr_buttons_done
@@ -57,63 +57,37 @@ enter_palette_editor:
     sta palette_cursor
     sta palette_subpal
 
-    ; hide paint and attribute editor sprites (#0-#4)
-    lda #$ff
-    ldx #(4 * 4)
--   sta sprite_data + 0 + 0, x
-    dex
-    dex
-    dex
-    dex
-    bpl -
+    ; hide attribute editor sprites
+    ldx #(1 * 4)
+    ldy #4
+    jsr hide_sprites  ; X=first*4, Y=count
 
-    ; show palette editor sprites (#5-#29)
-    ldx #(24 * 4)
--   lda initial_sprite_data + 5 * 4 + 0, x
-    sta sprite_data + 5 * 4 + 0, x
-    dex
-    dex
-    dex
-    dex
-    bpl -
+    ; show palette editor sprites
+    ldx #(5 * 4)
+    ldy #25
+    jsr show_sprites  ; X=first*4, Y=count
 
-    ; update tiles of cursor X position
+    ; update tiles of cursor coordinates
+    ;
     lda cursor_x
-    pha
-    jsr to_decimal_tens
+    jsr get_decimal_tens
     sta sprite_data + 7 * 4 + 1
-    pla
-    jsr to_decimal_ones
+    ;
+    lda cursor_x
+    jsr get_decimal_ones
     sta sprite_data + 8 * 4 + 1
-
-    ; update tiles of cursor Y position
+    ;
     lda cursor_y
-    pha
-    jsr to_decimal_tens
+    jsr get_decimal_tens
     sta sprite_data + 10 * 4 + 1
-    pla
-    jsr to_decimal_ones
+    ;
+    lda cursor_y
+    jsr get_decimal_ones
     sta sprite_data + 11 * 4 + 1
 
+    ; switch mode
     inc mode
-    rts
 
-to_decimal_tens:
-    ; A: unsigned integer -> decimal tens
-    ldx #$ff
-    sec
--   inx
-    sbc #10
-    bcs -
-    txa
-    rts
-
-to_decimal_ones:
-    ; A: unsigned integer -> decimal ones
-    sec
--   sbc #10
-    bcs -
-    adc #10
     rts
 
 ; --------------------------------------------------------------------------------------------------
@@ -122,98 +96,18 @@ prepare_attr_change:
     ; Prepare to cycle attribute value (0 -> 1 -> 2 -> 3 -> 0) of selected 2*2-tile block.
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
-    ; get nt_at_offset and nt_at_buffer_addr
-    jsr compute_attr_offset_and_addr
+    jsr get_nt_at_offset_for_at
+    jsr get_nt_at_buffer_addr
+    jsr get_pos_in_attr_byte  ; 0/2/4/6 to X
 
-    ; (position within attribute byte) * 2 -> X (0/2/4/6)
-    jsr get_pos_in_attr_byte  ; 0-3 to A
-    asl
-    tax
-    ;
-    ; increment correct bit pair in byte (00 -> 01 -> 10 -> 11 -> 00)
-    ; - the more significant bit is flipped if the less significant bit is set
-    ; - the less significant bit is always flipped
+    ; increment a bit pair in byte
     ldy #0
     lda (nt_at_buffer_addr), y
-    pha
-    and attr_byte_masks, x
-    beq +
-    inx
-+   pla
-    eor attr_byte_masks, x
-++  sta (nt_at_buffer_addr), y
-    pha
+    jsr increment_bit_pair      ; modify A according to X
+    ldy #0
+    sta (nt_at_buffer_addr), y
 
-    ; tell NMI to update attribute table 0 at $2000 + nt_at_offset
-    ;
-    ldx vram_buffer_pos
-    ;
-    lda nt_at_offset + 1
-    ora #$20
-    sta vram_buffer, x
-    inx
-    lda nt_at_offset + 0
-    sta vram_buffer, x
-    inx
-    pla
-    sta vram_buffer, x
-    inx
-    ;
-    stx vram_buffer_pos
-
-    rts
-
-attr_byte_masks:
-    ; AND/XOR masks (LSB or both LSB and MSB of each attribute block)
-    db %00000001, %00000011
-    db %00000100, %00001100
-    db %00010000, %00110000
-    db %01000000, %11000000
-
-compute_attr_offset_and_addr:
-    ; Compute nt_at_offset and nt_at_buffer_addr in context of an *attribute* byte.
-    ; (This sub is also used in paint mode.)
-
-    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
-    ; -> nt_at_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
-    ;
-    lda #%00000011
-    sta nt_at_offset + 1
-    ;
-    lda cursor_x
-    lsr
-    lsr
-    lsr
-    sta bitop_temp
-    lda cursor_y
-    and #%00111000
-    ora #%11000000
-    ora bitop_temp
-    sta nt_at_offset + 0
-
-    ; nt_at_buffer_addr (nt_at_buffer must start at $xx00)
-    lda nt_at_offset + 0
-    sta nt_at_buffer_addr + 0
-    clc
-    lda #>nt_at_buffer
-    adc nt_at_offset + 1
-    sta nt_at_buffer_addr + 1
-
-    rts
-
-get_pos_in_attr_byte:
-    ; Get position within attribute byte. (This sub is also used in paint mode.)
-    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef -> A = 000000Dd
-    ; 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right.
-
-    lda cursor_y
-    and #%00000100
-    sta bitop_temp
-    lda cursor_x
-    and #%00000100
-    lsr
-    ora bitop_temp
-    lsr
+    jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
     rts
 
 ; --------------------------------------------------------------------------------------------------

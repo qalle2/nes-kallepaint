@@ -1,6 +1,6 @@
 ; Kalle Paint - main loop - paint mode
 
-main_loop_paint_mode:
+paint_mode:
     ; ignore select, B and start if any of them was pressed on previous frame
     lda prev_joypad_status
     and #(button_select | button_b | button_start)
@@ -56,16 +56,17 @@ paint_arrowlogic:
     sta delay_left
 
 jump_to_part2:
-    jmp main_paint_part2  ; ends with rts
+    jmp paint_mode_part2  ; ends with rts
 
 ; --------------------------------------------------------------------------------------------------
 
 enter_attribute_editor:
     ; Switch to attribute edit mode.
 
-    ; hide paint cursor sprite (#0)
-    lda #$ff
-    sta sprite_data + 0 + 0
+    ; hide paint cursor sprite (X=first*4, Y=count)
+    ldx #(0 * 4)
+    ldy #1
+    jsr hide_sprites
 
     ; make cursor coordinates a multiple of four
     lda cursor_x
@@ -138,7 +139,7 @@ store_vertical:
 
 ; --------------------------------------------------------------------------------------------------
 
-main_paint_part2:
+paint_mode_part2:
     ; if A pressed, tell NMI routine to paint
     lda joypad_status
     and #button_a
@@ -168,36 +169,7 @@ main_paint_part2:
     lda #tile_largecur
 +   sta sprite_data + 0 + 1
 
-    ; get correct color for cursor
-    ;
-    ; if color 0 of any subpal, no need to read attribute table buffer
-    ldx paint_color
-    beq ++
-    ;
-    ; get address within attribute table buffer (nt_at_buffer_addr)
-    jsr compute_attr_offset_and_addr
-    ;
-    ; required shift count for attribute byte (0/2/4/6) -> X
-    jsr get_pos_in_attr_byte
-    asl
-    tax
-    ;
-    ; read attribute byte, shift relevant bits to positions 1-0, clear other bits
-    ldy #0
-    lda (nt_at_buffer_addr), y
-    cpx #0
-    beq +
--   lsr
-    dex
-    bne -
-+   and #%00000011
-    ;
-    ; compute cursor color and push it
-    asl
-    asl
-    ora paint_color
-    tax
-++  lda user_palette, x
+    jsr get_cursor_color  ; to A
     pha
 
     ; tell NMI to update paint color to cursor
@@ -205,14 +177,11 @@ main_paint_part2:
     ldy vram_buffer_pos
     ;
     lda #$3f
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     lda #$13
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     pla
-    sta vram_buffer, y
-    iny
+    a_to_vram_buffer
     ;
     sty vram_buffer_pos
 
@@ -224,35 +193,8 @@ prepare_paint:
     ; Prepare a paint operation to be done by NMI routine.
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
-    ; compute offset of byte to change
-    ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef -> nt_at_offset = 000000AB CDEabcde
-    ;
-    lda cursor_y
-    lsr
-    lsr
-    lsr
-    lsr
-    sta nt_at_offset + 1
-    ;
-    lda cursor_y
-    and #%00001110
-    asl
-    asl
-    asl
-    asl
-    sta bitop_temp
-    lda cursor_x
-    lsr
-    ora bitop_temp
-    sta nt_at_offset + 0
-
-    ; address to change in nt_at_buffer (nt_at_buffer is at $xx00)
-    lda nt_at_offset + 0
-    sta nt_at_buffer_addr + 0
-    clc
-    lda #>nt_at_buffer
-    adc nt_at_offset + 1
-    sta nt_at_buffer_addr + 1
+    jsr get_nt_at_offset_for_nt
+    jsr get_nt_at_buffer_addr
 
     ; get byte to write
 
@@ -262,71 +204,20 @@ prepare_paint:
     ; cursor is big; just fetch correct solid color tile
     ldx paint_color
     lda solid_color_tiles, x
-    jmp overwrite_byte
+    jmp ++
 
-    ; cursor is small; read old byte and replace two bits
-    ;
-    ; push old byte
+    ; cursor is small; read old byte and replace a bit pair
 +   ldy #0
     lda (nt_at_buffer_addr), y
-    pha
-    ;
-    ; position within tile (0-3) -> A, X
-    lda cursor_x
-    lsr
-    lda cursor_y
-    rol
-    and #%00000011
-    tax
-    ;
-    ; (position within tile) * 4 + paint_color -> Y
-    asl
-    asl
-    ora paint_color
-    tay
-    ;
-    ; pull old byte, clear bits to replace, write new bits
-    pla
-    and nt_and_masks, x
-    ora nt_or_masks, y
+    jsr replace_bit_pair
 
-overwrite_byte:
-    ; overwrite and push new byte value
-    ldy #0
+    ; overwrite byte
+++  ldy #0
     sta (nt_at_buffer_addr), y
-    pha
-
-    ; tell NMI to update name table 0 at $2000 + nt_at_offset
-    ;
-    ldx vram_buffer_pos
-    ;
-    lda nt_at_offset + 1
-    ora #$20
-    sta vram_buffer, x
-    inx
-    lda nt_at_offset + 0
-    sta vram_buffer, x
-    inx
-    pla
-    sta vram_buffer, x
-    inx
-    ;
-    stx vram_buffer_pos
-
+    jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
     rts
 
 solid_color_tiles:
     ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
     db %00000000, %01010101, %10101010, %11111111
-
-nt_and_masks:
-    ; clear one pixel (2 bits)
-    db %00111111, %11001111, %11110011, %11111100
-
-nt_or_masks:
-    ; set color of one pixel (2 bits)
-    db %00000000, %01000000, %10000000, %11000000
-    db %00000000, %00010000, %00100000, %00110000
-    db %00000000, %00000100, %00001000, %00001100
-    db %00000000, %00000001, %00000010, %00000011
 
