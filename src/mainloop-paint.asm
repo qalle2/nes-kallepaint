@@ -42,18 +42,17 @@ paint_arrowlogic:
     and #(button_up | button_down | button_left | button_right)
     bne +
     sta delay_left
-    beq jump_to_part2  ; unconditional
+    jmp jump_to_part2
     ;
     ; else if delay > 0, decrement it
 +   lda delay_left
     beq +
     dec delay_left
-    bpl jump_to_part2  ; unconditional
+    jmp jump_to_part2
     ;
     ; else react to arrows and reinitialize delay
 +   jsr paint_check_arrows
-    lda #delay
-    sta delay_left
+    copy #delay, delay_left
 
 jump_to_part2:
     jmp paint_mode_part2  ; ends with rts
@@ -92,13 +91,13 @@ paint_check_arrows:
     bcs paint_right
     lsr
     bcs paint_left
-    bcc check_vertical  ; unconditional
+    jmp check_vertical
 
 paint_right:
     lda cursor_x
     sec
     adc paint_cursor_type
-    bcc store_horizontal  ; unconditional
+    jmp store_horizontal
 paint_left:
     lda cursor_x
     clc
@@ -124,7 +123,7 @@ paint_cursor_down:
     cmp #56
     bne store_vertical
     lda #0
-    beq store_vertical  ; unconditional
+    jmp store_vertical
 paint_cursor_up:
     lda cursor_y
     clc
@@ -159,7 +158,7 @@ paint_mode_part2:
     lda cursor_y
     asl
     asl
-    adc #(8 - 1)  ; carry is always clear
+    add #(8 - 1)
     sta sprite_data + 0 + 0
     ;
     ; tile
@@ -173,24 +172,18 @@ paint_mode_part2:
     pha
 
     ; tell NMI to update paint color to cursor
-    ;
-    ldy vram_buffer_pos
-    ;
-    lda #$3f
-    a_to_vram_buffer
-    lda #$13
-    a_to_vram_buffer
+    ldx vram_buffer_pos
+    write_vram_buffer_addr $3f00 + 4 * 4 + 3
     pla
-    a_to_vram_buffer
-    ;
-    sty vram_buffer_pos
+    write_vram_buffer
+    stx vram_buffer_pos
 
     rts
 
 ; --------------------------------------------------------------------------------------------------
 
 prepare_paint:
-    ; Prepare a paint operation to be done by NMI routine.
+    ; Prepare a paint operation to be done by NMI routine. (Used by paint_mode_part2.)
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
     jsr get_nt_at_offset_for_nt
@@ -220,4 +213,78 @@ prepare_paint:
 solid_color_tiles:
     ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
     db %00000000, %01010101, %10101010, %11111111
+
+replace_bit_pair:
+    ; Replace a bit pair in a byte without modifying other bits. (Used by prepare_paint.)
+    ;   A: byte to modify
+    ;   cursor_x, cursor_y: which bit pair to modify
+    ;   paint_color: value of new bit pair
+
+    pha
+
+    ; position within tile (0-3) -> A, X
+    lda cursor_x
+    lsr
+    lda cursor_y
+    rol
+    and #%00000011
+    tax
+
+    ; (position within tile) * 4 + paint_color -> Y
+    asl
+    asl
+    ora paint_color
+    tay
+
+    ; pull old byte, clear bits to replace, write new bits
+    pla
+    and bitpair_clear_masks, x
+    ora bitpair_set_masks, y
+
+    rts
+
+bitpair_clear_masks:
+    ; clear one bit pair
+    db %00111111, %11001111, %11110011, %11111100
+
+bitpair_set_masks:
+    ; set one bit pair
+    db %00000000, %01000000, %10000000, %11000000
+    db %00000000, %00010000, %00100000, %00110000
+    db %00000000, %00000100, %00001000, %00001100
+    db %00000000, %00000001, %00000010, %00000011
+
+; --------------------------------------------------------------------------------------------------
+
+get_cursor_color:
+    ; Get correct color for cursor. (Used by paint_mode_part2.)
+    ; In: cursor_x, cursor_y, nt_at_buffer, user_palette
+    ; Out: A
+
+    ; if color 0 of any subpal, no need to read nt_at_buffer
+    ldx paint_color
+    beq ++
+
+    jsr get_nt_at_offset_for_at
+    jsr get_nt_at_buffer_addr
+    jsr get_pos_in_attr_byte  ; 0/2/4/6 to X
+
+    ; read attribute byte, shift relevant bits to positions 1-0, clear other bits
+    ldy #0
+    lda (nt_at_buffer_addr), y
+    cpx #0
+    beq +
+-   lsr
+    dex
+    bne -
++   and #%00000011
+
+    ; get user_palette index
+    asl
+    asl
+    ora paint_color
+    tax
+
+++  lda user_palette, x
+    rts
 

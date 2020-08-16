@@ -30,7 +30,7 @@ attr_buttons_done:
     asl
     sta sprite_data + 4 + 3
     sta sprite_data + 3 * 4 + 3
-    adc #8                       ; carry is always clear
+    add #8
     sta sprite_data + 2 * 4 + 3
     sta sprite_data + 4 * 4 + 3
     ;
@@ -38,10 +38,10 @@ attr_buttons_done:
     lda cursor_y
     asl
     asl
-    adc #(8 - 1)                 ; carry is always clear
+    add #(8 - 1)
     sta sprite_data + 4 + 0
     sta sprite_data + 2 * 4 + 0
-    adc #8                       ; carry is always clear
+    add #8
     sta sprite_data + 3 * 4 + 0
     sta sprite_data + 4 * 4 + 0
 
@@ -70,19 +70,19 @@ enter_palette_editor:
     ; update tiles of cursor coordinates
     ;
     lda cursor_x
-    jsr get_decimal_tens
+    jsr get_decimal_tens_tile
     sta sprite_data + 7 * 4 + 1
     ;
     lda cursor_x
-    jsr get_decimal_ones
+    jsr get_decimal_ones_tile
     sta sprite_data + 8 * 4 + 1
     ;
     lda cursor_y
-    jsr get_decimal_tens
+    jsr get_decimal_tens_tile
     sta sprite_data + 10 * 4 + 1
     ;
     lda cursor_y
-    jsr get_decimal_ones
+    jsr get_decimal_ones_tile
     sta sprite_data + 11 * 4 + 1
 
     ; switch mode
@@ -110,6 +110,28 @@ prepare_attr_change:
     jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
     rts
 
+increment_bit_pair:
+    ; Increment one bit pair in a byte (00 -> 01 -> 10 -> 11 -> 00) without modifying other bits.
+    ; (Used by prepare_attr_change.)
+    ;   A: byte to modify
+    ;   X: which bit pair to modify (0/2/4/6; 0 = least significant)
+    ; The algorithm: if LSB is clear, only flip it, otherwise flip MSB too.
+
+    pha
+    and bitpair_increment_masks, x  ; if LSB set, increment LUT index to flip both bits
+    beq +
+    inx
++   pla
+    eor bitpair_increment_masks, x
+    rts
+
+bitpair_increment_masks:
+    ; LSB or both LSB and MSB of each bit pair
+    db %00000001, %00000011
+    db %00000100, %00001100
+    db %00010000, %00110000
+    db %01000000, %11000000
+
 ; --------------------------------------------------------------------------------------------------
 
 attr_check_arrows:
@@ -130,13 +152,11 @@ attr_check_arrows:
 
 attr_right:
     lda cursor_x
-    clc
-    adc #4
-    bcc attr_store_horz  ; unconditional
+    add #4
+    jmp attr_store_horz
 attr_left:
     lda cursor_x
-    sec
-    sbc #4
+    sub #4
 attr_store_horz:
     and #%00111111
     sta cursor_x
@@ -144,16 +164,14 @@ attr_store_horz:
 
 attr_down:
     lda cursor_y
-    clc
-    adc #4
+    add #4
     cmp #56
     bne attr_store_vert
     lda #0
-    beq attr_store_vert  ; unconditional
+    jmp attr_store_vert
 attr_up:
     lda cursor_y
-    src
-    sbc #4
+    sub #4
     bpl attr_store_vert
     lda #(56 - 4)
 attr_store_vert:

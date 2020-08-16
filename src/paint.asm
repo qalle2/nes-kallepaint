@@ -1,9 +1,15 @@
 ; Kalle Paint (NES, ASM6f) - main program
+;
+; Conventions:
+;   - don't omit CLC before ADC #const or SEC before SBC #const
+;   - don't use branches instead of JMPs
+;   - don't use temporary variables
 
     ; value to fill unused areas with
     fillvalue $ff
 
     include "const.asm"
+    include "macro.asm"
 
 ; --- iNES header ----------------------------------------------------------------------------------
 
@@ -18,6 +24,9 @@
     pad $f800               ; last 2 KiB of PRG ROM
     include "init.asm"
     include "mainloop.asm"
+    align $100              ; for speed
+    include "identity.asm"
+    align $100              ; for speed
     include "nmi.asm"
     pad $fffa
     dw nmi, reset, $ffff    ; interrupt vectors (at the end of PRG ROM)

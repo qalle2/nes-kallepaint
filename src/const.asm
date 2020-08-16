@@ -35,13 +35,12 @@ paint_color        equ $0c    ; selected color (paint mode; 0-3)
 palette_cursor     equ $0d    ; cursor position (palette edit mode; 0-3)
 palette_subpal     equ $0e    ; selected subpalette (palette edit mode; 0-3)
 blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
-vram_buffer_pos    equ $10    ; offset of first free byte in vram_buffer (main loop)
-bitop_temp         equ $11    ; temp var for bitops
-user_palette       equ $12    ; 16 bytes (each $00-$3f; bytes 4/8/12 are unused)
+vram_buffer_pos    equ $10    ; offset of last written byte in vram_buffer (main loop)
+user_palette       equ $11    ; 16 bytes (each $00-$3f; bytes 4/8/12 are unused)
+vram_buffer        equ $21    ; to end of zero page (what to update in VRAM on next VBlank; format:
+                              ; addr hi (0=terminator), addr lo, byte, ...)
 sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
 nt_at_buffer       equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
-vram_buffer        equ $0700  ; $100 bytes (what to update in VRAM on next VBlank; addr, byte,
-                              ; addr, byte, ...; addr's are big endian; $00xx = end of data)
 
 ; --- Non-addresses --------------------------------------------------------------------------------
 
@@ -71,7 +70,7 @@ defcol3b  equ $22
 defcol3c  equ $32
 
 ; sprite tile indexes
-; note: hexadecimal digits must be at $00-$0f
+tile_digits   equ $00  ; hexadecimal digits "0"-"F"
 tile_smallcur equ $10  ; cursor - small
 tile_largecur equ $11  ; cursor - large
 tile_attrcur  equ $12  ; cursor - corner of attribute cursor
