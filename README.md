@@ -33,7 +33,7 @@ By default, the screen is filled with the first color of the first subpalette.
 There are three modes. Press select at any time to cycle between them.
 
 ### Paint mode
-![paint mode](paint1.png)
+![paint mode](snap/paint1.png)
 
 The program starts in this mode. The cursor reflects the selected brush size and paint color.
 
@@ -59,7 +59,7 @@ Buttons:
 Note: changing the subpalette has no visible effect if the selected square only contains the first color of a subpalette. (That color is shared between all subpalettes.)
 
 ### Palette edit mode
-![palette edit mode](paint2.png)
+![palette edit mode](snap/paint2.png)
 
 Indicators:
 * `X`: horizontal position of paint/attribute cursor (`00`&hellip;`63`)
