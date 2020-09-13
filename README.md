@@ -80,7 +80,7 @@ Note: the first (topmost) color is shared between all subpalettes.
 
 ## Technical info
 * mapper: NROM (iNES mapper number 0)
-* PRG ROM: 2 KiB (padded to the end of 16 KiB because of iNES file format limitations)
+* PRG ROM: 16 KiB
 * CHR ROM: 8 KiB
 * name table mirroring: horizontal (does not really matter)
 * save RAM: none
