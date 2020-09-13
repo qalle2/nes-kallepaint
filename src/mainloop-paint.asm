@@ -52,7 +52,7 @@ paint_arrowlogic:
     ;
     ; else react to arrows and reinitialize delay
 +   jsr paint_check_arrows
-    copy #delay, delay_left
+    copy_via_a #delay, delay_left
 
 jump_to_part2:
     jmp paint_mode_part2  ; ends with rts

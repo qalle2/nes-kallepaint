@@ -2,21 +2,6 @@
 
 ; --- Addresses ------------------------------------------------------------------------------------
 
-; memory-mapped registers
-ppu_ctrl   equ $2000
-ppu_mask   equ $2001
-ppu_status equ $2002
-oam_addr   equ $2003
-oam_data   equ $2004
-ppu_scroll equ $2005
-ppu_addr   equ $2006
-ppu_data   equ $2007
-dmc_freq   equ $4010
-oam_dma    equ $4014
-snd_chn    equ $4015
-joypad1    equ $4016
-joypad2    equ $4017
-
 ; Note: flag variables: $00-$7f = false, $80-$ff = true.
 ; Note: all address variables (2 bytes) are little endian (low byte, high byte).
 
@@ -43,16 +28,6 @@ sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
 nt_at_buffer       equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
 
 ; --- Non-addresses --------------------------------------------------------------------------------
-
-; joypad bitmasks
-button_a      equ %10000000
-button_b      equ %01000000
-button_select equ %00100000
-button_start  equ %00010000
-button_up     equ %00001000
-button_down   equ %00000100
-button_left   equ %00000010
-button_right  equ %00000001
 
 ; default user palette
 defcol_bg equ $0f  ; background (all subpalettes)

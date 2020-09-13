@@ -36,7 +36,7 @@ enter_paint_mode:
     jsr hide_sprites  ; X=first*4, Y=count
 
     ; switch mode
-    copy #0, mode
+    copy_via_a #0, mode
 
     rts
 

@@ -1,14 +1,14 @@
 ; Kalle Paint - main loop
 
 main_loop:
-    branch_if_clear run_main_loop, main_loop
+    branch_if_flag_clear run_main_loop, main_loop
 
     clear_flag run_main_loop
-    copy joypad_status, prev_joypad_status
+    copy_via_a joypad_status, prev_joypad_status
     jsr read_joypad
 
     ; start writing VRAM buffer (write_vram_buffer preincrements)
-    copy #$ff, vram_buffer_pos
+    copy_via_a #$ff, vram_buffer_pos
 
     ; tell NMI routine to update blinking cursor
     ldx vram_buffer_pos
@@ -181,7 +181,7 @@ get_nt_at_offset_for_at:
     ; Bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
     ;       -> nt_at_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
 
-    copy #%00000011, nt_at_offset + 1
+    copy_via_a #%00000011, nt_at_offset + 1
 
     lda cursor_y
     and #%00111000
@@ -200,7 +200,7 @@ get_nt_at_buffer_addr:
     ; Get nt_at_buffer_addr from nt_at_offset. (nt_at_buffer must start at $xx00.)
     ; (Used in paint/attribute edit mode.)
 
-    copy nt_at_offset + 0, nt_at_buffer_addr + 0
+    copy_via_a nt_at_offset + 0, nt_at_buffer_addr + 0
     lda #>nt_at_buffer
     add nt_at_offset + 1
     sta nt_at_buffer_addr + 1

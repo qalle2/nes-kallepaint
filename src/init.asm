@@ -55,12 +55,12 @@ reset:
     bne -
     ;
     ; misc
-    copy #30, cursor_x
-    copy #26, cursor_y
+    copy_via_a #30, cursor_x
+    copy_via_a #26, cursor_y
     inc paint_color
 
     ; prepare for PPU operations
-    wait_vblank_start
+    wait_for_vblank_start
     reset_ppu_address_latch
 
     ; set palette
@@ -80,18 +80,18 @@ reset:
 
     set_ppu_address $0000      ; do after VRAM accesses
     set_ppu_scroll 0, 256 - 8  ; do after set_ppu_address
-    wait_vblank_start          ; do before enabling rendering
+    wait_for_vblank_start      ; do before enabling rendering
 
     ; show background and sprites on entire screen,
     ; don't use R/G/B de-emphasis or grayscale mode
-    copy #%00011110, ppu_mask
+    copy_via_a #%00011110, ppu_mask
 
     ; enable NMI,
     ; use 8*8-pixel sprites,
     ; use pattern table 0 for background and 1 for sprites,
     ; use 1-byte VRAM address auto-increment,
     ; use name table 0
-    copy #%10001000, ppu_ctrl
+    copy_via_a #%10001000, ppu_ctrl
 
     jmp main_loop
 

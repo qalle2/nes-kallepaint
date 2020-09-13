@@ -6,13 +6,14 @@ First, get the `.bin` files:
   * Either extract them from `bin.zip`&hellip;
   * &hellip;or generate them using Python scripts:
     * Install Python 3.
-    * Get `nes_chr_encode.py` and its dependencies from [this repository](https://github.com/qalle2/nes-util).
+    * Get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util).
     * Generate `background.bin`: `python3 gfx/background.py background.bin`
     * Generate `sprites.bin`: `python3 nes_chr_encode.py gfx/sprites.png sprites.bin`
 
 Then, assemble:
-* Go to the `src` directory.
-* Run `asm6f paint.asm ../paint.nes`
+* Get `nes.asm` from [my NES utilities](https://github.com/qalle2/nes-util).
+* In `src/paint.asm`, make sure the path to `nes.asm` is correct.
+* Under the `src` directory, run `asm6f paint.asm ../paint.nes`
 
 Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
 
