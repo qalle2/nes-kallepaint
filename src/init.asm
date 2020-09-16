@@ -41,8 +41,17 @@ reset:
 
     ; initialize nonzero variables
     ;
-    copy_array initial_palette, user_palette, 16
-    copy_array initial_sprite_data, sprite_data, 30 * 4
+    ldx #(16 - 1)
+-   lda initial_palette, x
+    sta user_palette, x
+    dex
+    bpl -
+    ;
+    ldx #(30 * 4 - 1)
+-   lda initial_sprite_data, x
+    sta sprite_data, x
+    dex
+    bpl -
     ;
     ; hide sprites except paint cursor (#0)
     lda #$ff
@@ -65,7 +74,12 @@ reset:
 
     ; set palette
     set_ppu_address $3f00
-    copy_array_to_vram initial_palette, 32
+    ldx #0
+-   lda initial_palette, x
+    sta ppu_data
+    inx
+    cpx #32
+    bne -
 
     ; clear name/attribute table 0 ($400 bytes)
     set_ppu_address $2000
