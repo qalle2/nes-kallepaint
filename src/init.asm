@@ -1,30 +1,7 @@
 ; Kalle Paint - initialization
 
 reset:
-    ; Initialize the NES. See http://wiki.nesdev.com/w/index.php/Init_code
-    ;
-    ; ignore IRQs
-    sei
-    ;
-    ; disable decimal mode
-    cld
-    ;
-    ; disable APU frame IRQ
-    ldx #$40
-    stx joypad2
-    ;
-    ; initialize stack pointer
-    ldx #$ff
-    txs
-    ;
-    ; disable NMI, rendering, DMC IRQs and all sound channels
-    inx
-    stx ppu_ctrl
-    stx ppu_mask
-    stx dmc_freq
-    stx snd_chn
-
-    wait_vblank_start
+    initialize_nes
 
     ; clear zero page, nt_at_buffer and vram_buffer
     lda #$00
