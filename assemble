@@ -14,7 +14,7 @@ python3 ../nes-util/nes_chr_encode.py gfx/sprites.png sprites.bin
 
 # Assemble
 cd src
-asm6f paint.asm -l ../paint.nes
+asm6f paint.asm -f ../paint.nes
 cd ..
 
 # Compress binaries

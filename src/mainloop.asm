@@ -1,60 +1,16 @@
 ; Kalle Paint - main loop
 
-main_loop:
-    branch_if_flag_clear run_main_loop, main_loop
+main_loop
+    ; wait until NMI routine has run
+    bit run_main_loop
+    bpl main_loop
 
-    clear_flag run_main_loop
-    copy_via_a joypad_status, prev_joypad_status
-    jsr read_joypad
+    ; prevent main loop from running again until after next NMI
+    lsr run_main_loop
 
-    ; start writing VRAM buffer (write_vram_buffer preincrements)
-    copy_via_a #$ff, vram_buffer_pos
-
-    ; tell NMI routine to update blinking cursor
-    ldx vram_buffer_pos
-    write_vram_buffer_addr $3f00 + 4 * 4 + 3
-    jsr get_blinking_cursor_color             ; A
-    write_vram_buffer
-    stx vram_buffer_pos
-
-    inc blink_timer
-
-    jsr jump_engine
-
-    ; terminate VRAM buffer
-    ldx vram_buffer_pos
-    lda #$00
-    write_vram_buffer
-    stx vram_buffer_pos
-
-    jmp main_loop
-
-; --------------------------------------------------------------------------------------------------
-
-jump_engine:
-    ; Run one subroutine depending on the mode we're in. Note: this routine must not be inlined.
-
-    ldx mode
-    lda jump_table_hi, x
-    pha
-    lda jump_table_lo, x
-    pha
-    rts  ; pull address, low byte first; jump to address + 1
-
-jump_table_hi:
-    dh paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
-jump_table_lo:
-    dl paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
-
-    include "mainloop-paint.asm"
-    include "mainloop-attr.asm"
-    include "mainloop-pal.asm"
-
-; --- Misc subs ------------------------------------------------------------------------------------
-
-read_joypad:
-    ; Read the first joypad.
-    ; Out: joypad_status (bits: A, B, select, start, up, down, left, right).
+    ; store previous joypad status
+    lda joypad_status
+    sta prev_joypad_status
 
     ; initialize joypads; set LSB of variable to detect end of loop
     ldx #$01
@@ -63,7 +19,8 @@ read_joypad:
     dex
     stx joypad1
 
-    ; read the first joypad eight times; each button is the OR of bits 1 and 0
+    ; read 1st joypad 8 times; for each button, compute OR of bits 1 and 0
+    ; bits of joypad_status: A, B, select, start, up, down, left, right
 -   clc
     lda joypad1
     and #%00000011
@@ -72,9 +29,60 @@ read_joypad:
 +   rol joypad_status
     bcc -
 
+    ; tell NMI routine to update blinking cursor (this is the first item in vram_buffer)
+    ;
+    lda #$3f
+    sta vram_buffer + 0
+    lda #$13
+    sta vram_buffer + 1
+    jsr get_blinking_cursor_color
+    sta vram_buffer + 2
+    ;
+    ; store position of last byte written
+    lda #2
+    sta vram_buffer_pos
+
+    inc blink_timer
+
+    jsr jump_engine
+
+    ; terminate VRAM buffer
+    ldx vram_buffer_pos
+    lda #$00
+    sta vram_buffer + 1, x
+
+    beq main_loop  ; unconditional
+
+; --------------------------------------------------------------------------------------------------
+
+jump_engine
+    ; Run one subroutine depending on the mode we're in. Note: this routine must not be inlined.
+
+    ; push target address minus one, high byte first
+    ldx mode
+    lda jump_table_hi, x
+    pha
+    lda jump_table_lo, x
+    pha
+    ;
+    ; pull address, low byte first; jump to that address plus one
     rts
 
-get_blinking_cursor_color:
+jump_table_hi
+    dh paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
+jump_table_lo
+    dl paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
+
+paint_mode
+    include "mainloop-paint.asm"
+attribute_edit_mode
+    include "mainloop-attr.asm"
+palette_edit_mode
+    include "mainloop-pal.asm"
+
+; --- Misc subs ------------------------------------------------------------------------------------
+
+get_blinking_cursor_color
     ; Get color for blinking cursor. Don't touch X. Out: A.
 
     ldy #editor_bg
@@ -85,7 +93,7 @@ get_blinking_cursor_color:
 +   tya
     rts
 
-hide_sprites:
+hide_sprites
     ; Hide sprites by setting their Y positions to $ff.
     ; X: first sprite, times four
     ; Y: number of sprites
@@ -99,7 +107,7 @@ hide_sprites:
     bne -
     rts
 
-show_sprites:
+show_sprites
     ; Show sprites by copying their Y positions from initial data.
     ; X: first sprite, times four
     ; Y: number of sprites
@@ -113,24 +121,26 @@ show_sprites:
     bne -
     rts
 
-get_decimal_tens_tile:
+get_decimal_tens_tile
     ; A: unsigned integer -> tile index of decimal tens
     ldx #$ff
+    sec
 -   inx
-    sub #10
+    sbc #10
     bcs -
     txa
-    add #tile_digits
+    adc #tile_digits  ; carry is always clear
     rts
 
-get_decimal_ones_tile:
+get_decimal_ones_tile
     ; A: unsigned integer -> tile index of decimal ones
--   sub #10
+    sec
+-   sbc #10
     bcs -
-    add #(10 + tile_digits)
+    adc #(10 + tile_digits)  ; carry is always clear
     rts
 
-get_pos_in_attr_byte:
+get_pos_in_attr_byte
     ; Get position within attribute byte. (Used in paint/attribute edit mode.)
     ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef -> X = 00000Dd0
     ; 0 = top left, 2 = top right, 4 = bottom left, 6 = bottom right.
@@ -150,17 +160,17 @@ get_pos_in_attr_byte:
 
     rts
 
-get_nt_at_offset_for_nt:
-    ; Compute nt_at_offset for a *name table* byte. (Used in paint mode.)
+get_vram_offset_for_nt
+    ; Compute vram_offset for a name table byte. (Used in paint mode.)
     ; Bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
-    ;       -> nt_at_offset = 000000AB CDEabcde
+    ;       -> vram_offset = 000000AB CDEabcde
 
     lda cursor_y
     lsr
     lsr
     lsr
     lsr
-    sta nt_at_offset + 1   ; 000000AB
+    sta vram_offset + 1
 
     lda cursor_y
     and #%00001110
@@ -168,66 +178,72 @@ get_nt_at_offset_for_nt:
     asl
     asl
     asl
-    tax                    ; CDE00000
+    sta temp
     lda cursor_x
-    lsr                    ; 000abcde
-    ora identity_table, x
-    sta nt_at_offset + 0   ; CDEabcde
+    lsr
+    ora temp
+    sta vram_offset + 0
 
     rts
 
-get_nt_at_offset_for_at:
-    ; Compute nt_at_offset for an *attribute* byte. (Used in paint/attribute edit mode.)
+get_vram_offset_for_at
+    ; Compute vram_offset for an attribute table byte. (Used in paint/attribute edit mode.)
     ; Bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
-    ;       -> nt_at_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
+    ;       -> vram_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
 
-    copy_via_a #%00000011, nt_at_offset + 1
+    lda #%00000011
+    sta vram_offset + 1
 
     lda cursor_y
     and #%00111000
-    tax                    ; 00ABC000
+    sta temp
     lda cursor_x
     lsr
     lsr
-    lsr                    ; 00000abc
-    ora identity_table, x  ; 00ABCabc
-    ora #%11000000         ; 11ABCabc
-    sta nt_at_offset + 0
+    lsr
+    ora temp
+    ora #%11000000
+    sta vram_offset + 0
 
     rts
 
-get_nt_at_buffer_addr:
-    ; Get nt_at_buffer_addr from nt_at_offset. (nt_at_buffer must start at $xx00.)
-    ; (Used in paint/attribute edit mode.)
+get_vram_copy_addr
+    ; vram_copy + vram_offset -> vram_copy_addr (vram_copy must be at $xx00)
+    ; (used in paint/attribute edit mode)
 
-    copy_via_a nt_at_offset + 0, nt_at_buffer_addr + 0
-    lda #>nt_at_buffer
-    add nt_at_offset + 1
-    sta nt_at_buffer_addr + 1
+    lda vram_offset + 0
+    sta vram_copy_addr + 0
+    ;
+    lda #>vram_copy
+    add vram_offset + 1
+    sta vram_copy_addr + 1
 
     rts
 
-nt_at_update_to_vram_buffer:
-    ; Tell NMI routine to write A to VRAM $2000 + nt_at_offset.
+nt_at_update_to_vram_buffer
+    ; Tell NMI routine to write A to VRAM $2000 + vram_offset.
     ; (Used in paint/attribute edit mode.)
 
     pha
 
     ldx vram_buffer_pos
     ;
-    lda nt_at_offset + 1
+    lda vram_offset + 1
     ora #$20
-    write_vram_buffer
-    lda nt_at_offset + 0
-    write_vram_buffer
+    sta vram_buffer + 1, x
+    lda vram_offset + 0
+    sta vram_buffer + 2, x
     pla
-    write_vram_buffer
+    sta vram_buffer + 3, x
     ;
+    inx
+    inx
+    inx
     stx vram_buffer_pos
 
     rts
 
-get_user_pal_offset:
+get_user_pal_offset
     ; Get offset to user_palette or VRAM $3f00-$3f0f.
     ; (Used in palette editor.)
     ;   if palette_cursor = 0: 0

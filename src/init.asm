@@ -1,18 +1,17 @@
 ; Kalle Paint - initialization
 
-reset:
+reset
     initialize_nes
 
-    ; clear zero page, nt_at_buffer and vram_buffer
+    ; clear zero page and vram_copy
     lda #$00
     tax
     ldx #0
 -   sta $00, x
-    sta nt_at_buffer, x
-    sta nt_at_buffer + $100, x
-    sta nt_at_buffer + $200, x
-    sta nt_at_buffer + $300, x
-    sta vram_buffer, x
+    sta vram_copy, x
+    sta vram_copy + $100, x
+    sta vram_copy + $200, x
+    sta vram_copy + $300, x
     inx
     bne -
 
@@ -47,7 +46,6 @@ reset:
 
     ; prepare for PPU operations
     wait_for_vblank_start
-    reset_ppu_address_latch
 
     ; set palette
     set_ppu_address $3f00
@@ -69,6 +67,7 @@ reset:
     dey
     bne --
 
+    bit ppu_status             ; reset address latch
     set_ppu_address $0000      ; do after VRAM accesses
     set_ppu_scroll 0, 256 - 8  ; do after set_ppu_address
     wait_for_vblank_start      ; do before enabling rendering
@@ -88,7 +87,7 @@ reset:
 
 ; --------------------------------------------------------------------------------------------------
 
-initial_palette:
+initial_palette
     ; background (also the initial user palette)
     db defcol_bg, defcol0a, defcol0b, defcol0c
     db defcol_bg, defcol1a, defcol1b, defcol1c
@@ -104,7 +103,7 @@ initial_palette:
     db defcol_bg, editor_bg, defcol0b,  defcol_bg
     db defcol_bg, editor_bg, defcol0c,  defcol_bg
 
-initial_sprite_data:
+initial_sprite_data
     ; Y, tile, attributes, X
 
     ; paint mode

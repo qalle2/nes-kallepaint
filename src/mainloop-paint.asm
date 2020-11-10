@@ -1,6 +1,5 @@
 ; Kalle Paint - main loop - paint mode
 
-paint_mode:
     ; ignore select, B and start if any of them was pressed on previous frame
     lda prev_joypad_status
     and #(button_select | button_b | button_start)
@@ -10,7 +9,7 @@ paint_mode:
     lda joypad_status
     and #button_select
     beq +
-    jmp enter_attribute_editor  ; ends with rts
+    bne enter_attribute_editor  ; unconditional; ends with rts
 
     ; if B pressed, cycle between 4 colors (0 -> 1 -> 2 -> 3 -> 0)
 +   lda joypad_status
@@ -36,30 +35,29 @@ paint_mode:
     asl cursor_y
 +
 
-paint_arrowlogic:
+paint_arrowlogic
     ; if no arrow pressed, clear cursor movement delay
     lda joypad_status
     and #(button_up | button_down | button_left | button_right)
     bne +
     sta delay_left
-    jmp jump_to_part2
+    beq paint_mode_part2  ; unconditional; ends with rts
     ;
     ; else if delay > 0, decrement it
 +   lda delay_left
     beq +
     dec delay_left
-    jmp jump_to_part2
+    bpl paint_mode_part2  ; unconditional; ends with rts
     ;
     ; else react to arrows and reinitialize delay
 +   jsr paint_check_arrows
-    copy_via_a #delay, delay_left
-
-jump_to_part2:
-    jmp paint_mode_part2  ; ends with rts
+    lda #delay
+    sta delay_left
+    bne paint_mode_part2  ; unconditional; ends with rts
 
 ; --------------------------------------------------------------------------------------------------
 
-enter_attribute_editor:
+enter_attribute_editor
     ; Switch to attribute edit mode.
 
     ; hide paint cursor sprite (X=first*4, Y=count)
@@ -82,7 +80,7 @@ enter_attribute_editor:
 
 ; --------------------------------------------------------------------------------------------------
 
-paint_check_arrows:
+paint_check_arrows
     ; React to arrows (including diagonal directions).
     ; Changes: cursor_x, cursor_y
 
@@ -91,22 +89,22 @@ paint_check_arrows:
     bcs paint_right
     lsr
     bcs paint_left
-    jmp check_vertical
+    bcc check_vertical  ; unconditional
 
-paint_right:
+paint_right
     lda cursor_x
     sec
     adc paint_cursor_type
-    jmp store_horizontal
-paint_left:
+    bpl store_horizontal  ; unconditional
+paint_left
     lda cursor_x
     clc
     sbc paint_cursor_type
-store_horizontal:
+store_horizontal
     and #%00111111
     sta cursor_x
 
-check_vertical:
+check_vertical
     lda joypad_status
     lsr
     lsr
@@ -116,15 +114,15 @@ check_vertical:
     bcs paint_cursor_up
     rts
 
-paint_cursor_down:
+paint_cursor_down
     lda cursor_y
     sec
     adc paint_cursor_type
     cmp #56
     bne store_vertical
     lda #0
-    jmp store_vertical
-paint_cursor_up:
+    beq store_vertical  ; unconditional
+paint_cursor_up
     lda cursor_y
     clc
     sbc paint_cursor_type
@@ -132,13 +130,13 @@ paint_cursor_up:
     lda #56
     clc
     sbc paint_cursor_type
-store_vertical:
+store_vertical
     sta cursor_y
     rts
 
 ; --------------------------------------------------------------------------------------------------
 
-paint_mode_part2:
+paint_mode_part2
     ; if A pressed, tell NMI routine to paint
     lda joypad_status
     and #button_a
@@ -172,22 +170,31 @@ paint_mode_part2:
     pha
 
     ; tell NMI to update paint color to cursor
+    ;
     ldx vram_buffer_pos
-    write_vram_buffer_addr $3f00 + 4 * 4 + 3
+    ;
+    lda #$3f
+    sta vram_buffer + 1, x
+    lda #$13
+    sta vram_buffer + 2, x
     pla
-    write_vram_buffer
+    sta vram_buffer + 3, x
+    ;
+    inx
+    inx
+    inx
     stx vram_buffer_pos
 
     rts
 
 ; --------------------------------------------------------------------------------------------------
 
-prepare_paint:
+prepare_paint
     ; Prepare a paint operation to be done by NMI routine. (Used by paint_mode_part2.)
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
-    jsr get_nt_at_offset_for_nt
-    jsr get_nt_at_buffer_addr
+    jsr get_vram_offset_for_nt
+    jsr get_vram_copy_addr
 
     ; get byte to write
 
@@ -201,20 +208,20 @@ prepare_paint:
 
     ; cursor is small; read old byte and replace a bit pair
 +   ldy #0
-    lda (nt_at_buffer_addr), y
+    lda (vram_copy_addr), y
     jsr replace_bit_pair
 
     ; overwrite byte
 ++  ldy #0
-    sta (nt_at_buffer_addr), y
+    sta (vram_copy_addr), y
     jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
     rts
 
-solid_color_tiles:
+solid_color_tiles
     ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
     db %00000000, %01010101, %10101010, %11111111
 
-replace_bit_pair:
+replace_bit_pair
     ; Replace a bit pair in a byte without modifying other bits. (Used by prepare_paint.)
     ;   A: byte to modify
     ;   cursor_x, cursor_y: which bit pair to modify
@@ -243,11 +250,11 @@ replace_bit_pair:
 
     rts
 
-bitpair_clear_masks:
+bitpair_clear_masks
     ; clear one bit pair
     db %00111111, %11001111, %11110011, %11111100
 
-bitpair_set_masks:
+bitpair_set_masks
     ; set one bit pair
     db %00000000, %01000000, %10000000, %11000000
     db %00000000, %00010000, %00100000, %00110000
@@ -256,22 +263,22 @@ bitpair_set_masks:
 
 ; --------------------------------------------------------------------------------------------------
 
-get_cursor_color:
+get_cursor_color
     ; Get correct color for cursor. (Used by paint_mode_part2.)
-    ; In: cursor_x, cursor_y, nt_at_buffer, user_palette
+    ; In: cursor_x, cursor_y, vram_buffer, user_palette
     ; Out: A
 
-    ; if color 0 of any subpal, no need to read nt_at_buffer
+    ; if color 0 of any subpal, no need to read vram_buffer
     ldx paint_color
     beq ++
 
-    jsr get_nt_at_offset_for_at
-    jsr get_nt_at_buffer_addr
+    jsr get_vram_offset_for_at
+    jsr get_vram_copy_addr
     jsr get_pos_in_attr_byte  ; 0/2/4/6 to X
 
     ; read attribute byte, shift relevant bits to positions 1-0, clear other bits
     ldy #0
-    lda (nt_at_buffer_addr), y
+    lda (vram_copy_addr), y
     cpx #0
     beq +
 -   lsr

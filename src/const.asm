@@ -6,8 +6,8 @@
 ; Note: all address variables (2 bytes) are little endian (low byte, high byte).
 
 ; RAM
-nt_at_offset       equ $00    ; 2 bytes (offset to name/attribute table 0 and nt_at_buffer)
-nt_at_buffer_addr  equ $02    ; 2 bytes (address within nt_at_buffer)
+vram_offset        equ $00    ; 2 bytes (offset to name/attribute table 0 and vram_copy; 0...$3ff)
+vram_copy_addr     equ $02    ; 2 bytes (address: vram_copy...vram_copy+$3ff)
 mode               equ $04    ; 0 = paint, 1 = attribute editor, 2 = palette editor
 run_main_loop      equ $05    ; flag (true = main loop allowed to run)
 joypad_status      equ $06    ; first joypad status (bits: A B select start up down left right)
@@ -21,11 +21,12 @@ palette_cursor     equ $0d    ; cursor position (palette edit mode; 0-3)
 palette_subpal     equ $0e    ; selected subpalette (palette edit mode; 0-3)
 blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
 vram_buffer_pos    equ $10    ; offset of last written byte in vram_buffer (main loop)
-user_palette       equ $11    ; 16 bytes (each $00-$3f; bytes 4/8/12 are unused)
-vram_buffer        equ $21    ; to end of zero page (what to update in VRAM on next VBlank; format:
+temp               equ $11    ; temporary
+user_palette       equ $12    ; 16 bytes (each $00-$3f; offsets 4/8/12 are unused)
+vram_buffer        equ $22    ; to end of zero page (what to update in VRAM on next VBlank; format:
                               ; addr hi (0=terminator), addr lo, byte, ...)
 sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
-nt_at_buffer       equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
+vram_copy          equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
 
 ; --- Non-addresses --------------------------------------------------------------------------------
 

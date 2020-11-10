@@ -1,6 +1,5 @@
 ; Kalle Paint - main loop - attribute edit mode
 
-attribute_edit_mode:
     ; ignore buttons if anything was pressed on previous frame
     lda prev_joypad_status
     bne attr_buttons_done
@@ -9,7 +8,7 @@ attribute_edit_mode:
     lda joypad_status
     and #button_select
     beq +
-    jmp enter_palette_editor  ; ends with rts
+    bne enter_palette_editor  ; unconditional; ends with rts
 
     ; otherwise if A pressed, tell NMI to update attribute byte
 +   lda joypad_status
@@ -21,7 +20,7 @@ attribute_edit_mode:
     ; otherwise, check arrows
 +   jsr attr_check_arrows
 
-attr_buttons_done:
+attr_buttons_done
     ; update cursor sprite
     ;
     ; X
@@ -30,7 +29,7 @@ attr_buttons_done:
     asl
     sta sprite_data + 4 + 3
     sta sprite_data + 3 * 4 + 3
-    add #8
+    adc #8  ; carry is always clear
     sta sprite_data + 2 * 4 + 3
     sta sprite_data + 4 * 4 + 3
     ;
@@ -38,10 +37,10 @@ attr_buttons_done:
     lda cursor_y
     asl
     asl
-    add #(8 - 1)
+    adc #(8 - 1)  ; carry is always clear
     sta sprite_data + 4 + 0
     sta sprite_data + 2 * 4 + 0
-    add #8
+    adc #8  ; carry is always clear
     sta sprite_data + 3 * 4 + 0
     sta sprite_data + 4 * 4 + 0
 
@@ -49,7 +48,7 @@ attr_buttons_done:
 
 ; --------------------------------------------------------------------------------------------------
 
-enter_palette_editor:
+enter_palette_editor
     ; Switch to palette edit mode.
 
     ; reset palette cursor position and selected subpalette
@@ -92,25 +91,25 @@ enter_palette_editor:
 
 ; --------------------------------------------------------------------------------------------------
 
-prepare_attr_change:
+prepare_attr_change
     ; Prepare to cycle attribute value (0 -> 1 -> 2 -> 3 -> 0) of selected 2*2-tile block.
     ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
 
-    jsr get_nt_at_offset_for_at
-    jsr get_nt_at_buffer_addr
+    jsr get_vram_offset_for_at
+    jsr get_vram_copy_addr
     jsr get_pos_in_attr_byte  ; 0/2/4/6 to X
 
     ; increment a bit pair in byte
     ldy #0
-    lda (nt_at_buffer_addr), y
+    lda (vram_copy_addr), y
     jsr increment_bit_pair      ; modify A according to X
     ldy #0
-    sta (nt_at_buffer_addr), y
+    sta (vram_copy_addr), y
 
     jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
     rts
 
-increment_bit_pair:
+increment_bit_pair
     ; Increment one bit pair in a byte (00 -> 01 -> 10 -> 11 -> 00) without modifying other bits.
     ; (Used by prepare_attr_change.)
     ;   A: byte to modify
@@ -125,7 +124,7 @@ increment_bit_pair:
     eor bitpair_increment_masks, x
     rts
 
-bitpair_increment_masks:
+bitpair_increment_masks
     ; LSB or both LSB and MSB of each bit pair
     db %00000001, %00000011
     db %00000100, %00001100
@@ -134,7 +133,7 @@ bitpair_increment_masks:
 
 ; --------------------------------------------------------------------------------------------------
 
-attr_check_arrows:
+attr_check_arrows
     ; React to arrows (excluding diagonal directions).
     ; Reads: joypad_status, cursor_x, cursor_y
     ; Changes: cursor_x, cursor_y
@@ -150,31 +149,31 @@ attr_check_arrows:
     bcs attr_up
     rts
 
-attr_right:
+attr_right
     lda cursor_x
-    add #4
-    jmp attr_store_horz
-attr_left:
+    adc #(4 - 1)  ; carry is always set
+    bcc attr_store_horz  ; unconditional
+attr_left
     lda cursor_x
-    sub #4
-attr_store_horz:
+    sbc #4  ; carry is always set
+attr_store_horz
     and #%00111111
     sta cursor_x
     rts
 
-attr_down:
+attr_down
     lda cursor_y
-    add #4
+    adc #(4 - 1)  ; carry is always set
     cmp #56
     bne attr_store_vert
     lda #0
-    jmp attr_store_vert
-attr_up:
+    beq attr_store_vert  ; unconditional
+attr_up
     lda cursor_y
-    sub #4
+    sbc #4  ; carry is always set
     bpl attr_store_vert
     lda #(56 - 4)
-attr_store_vert:
+attr_store_vert
     sta cursor_y
     rts
 

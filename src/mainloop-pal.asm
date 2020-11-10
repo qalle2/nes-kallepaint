@@ -1,10 +1,9 @@
 ; Kalle Paint - main loop - palette edit mode
 
-palette_edit_mode:
     ; ignore buttons if anything was pressed on previous frame
     lda prev_joypad_status
     beq +
-    jmp palette_edit_mode_part2
+    bne palette_edit_mode_part2  ; unconditional
 
 +   lda joypad_status
     lsr
@@ -23,11 +22,11 @@ palette_edit_mode:
     bcs pal_minus16       ; B
     bne pal_plus16        ; A
 
-    jmp palette_edit_mode_part2
+    beq palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
-enter_paint_mode:
+enter_paint_mode
     ; Switch to paint mode.
 
     ; hide palette editor sprites
@@ -42,71 +41,72 @@ enter_paint_mode:
 
 ; --------------------------------------------------------------------------------------------------
 
-pal_cycle_subpal:
+pal_cycle_subpal
     ; Cycle between subpalettes (0 -> 1 -> 2 -> 3 -> 0).
 
     lda palette_subpal
-    add #1
+    adc #0  ; carry is always set
     and #%00000011
     sta palette_subpal
-    jmp palette_edit_mode_part2
+    bpl palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
-pal_up:
-    ldx palette_cursor
-    dex
-    jmp +
-pal_down:
+pal_down
     ldx palette_cursor
     inx
-+   txa
+    bpl pal_store  ; unconditional
+pal_up
+    ldx palette_cursor
+    dex
+pal_store
+    txa
     and #%00000011
     sta palette_cursor
     tax
-    jmp palette_edit_mode_part2
+    bpl palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
-pal_minus1:
-    jsr get_user_pal_offset  ; A, X
-    ldy user_palette, x
-    dey
-    jmp +
-pal_plus1:
+pal_plus1
     jsr get_user_pal_offset  ; A, X
     ldy user_palette, x
     iny
-    ;
-+   tya
+    bpl pal_storesmall  ; unconditional
+pal_minus1
+    jsr get_user_pal_offset  ; A, X
+    ldy user_palette, x
+    dey
+pal_storesmall
+    tya
     and #%00001111
-    tay
+    sta temp
     ;
     lda user_palette, x
     and #%00110000
-    ora identity_table, y
+    ora temp
     sta user_palette, x
     ;
-    jmp palette_edit_mode_part2
+    bpl palette_edit_mode_part2  ; unconditional
 
-pal_minus16:
-    jsr get_user_pal_offset  ; A, X
-    lda user_palette, x
-    sub #$10
-    jmp +
-pal_plus16:
+pal_plus16
     jsr get_user_pal_offset  ; A, X
     lda user_palette, x
     add #$10
-    ;
-+   and #%00111111
+    bpl pal_storelarge  ; unconditional
+pal_minus16
+    jsr get_user_pal_offset  ; A, X
+    lda user_palette, x
+    sub #$10
+pal_storelarge
+    and #%00111111
     sta user_palette, x
     ;
-    jmp palette_edit_mode_part2
+    bpl palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
-palette_edit_mode_part2:
+palette_edit_mode_part2
     ; update tile of selected subpalette
     lda #tile_digits
     add palette_subpal
@@ -117,7 +117,7 @@ palette_edit_mode_part2:
     asl
     asl
     asl
-    add #(15 * 8 - 1)
+    adc #(15 * 8 - 1)  ; carry is always clear
     sta sprite_data + 5 * 4 + 0
 
     ; update tiles of color number 16s and ones
@@ -137,7 +137,7 @@ palette_edit_mode_part2:
     add #tile_digits
     sta sprite_data + 16 * 4 + 1
 
-    ; tell NMI to update VRAM
+    ; tell NMI to update VRAM by appending 15 (5 * 3) bytes to vram_buffer
     ;
     jsr get_user_pal_offset  ; A, X
     pha
@@ -145,18 +145,23 @@ palette_edit_mode_part2:
     ldx vram_buffer_pos
     ;
     ; selected color in selected subpal -> background palette
+    ;
     lda #$3f
-    write_vram_buffer
+    sta vram_buffer + 1, x
     pla
-    write_vram_buffer
+    sta vram_buffer + 2, x
     tay
     lda user_palette, y
-    write_vram_buffer
+    sta vram_buffer + 3, x
     ;
     ; 1st color of all subpalettes
-    write_vram_buffer_addr $3f00 + 4 * 4 + 2
+    ;
+    lda #$3f
+    sta vram_buffer + 4, x
+    lda #$12
+    sta vram_buffer + 5, x
     lda user_palette + 0
-    write_vram_buffer
+    sta vram_buffer + 6, x
     ;
     ; offset of selected subpalette in user_palette -> Y
     lda palette_subpal
@@ -165,21 +170,35 @@ palette_edit_mode_part2:
     tay
     ;
     ; 2nd color of selected subpalette
-    write_vram_buffer_addr $3f00 + 5 * 4 + 2
+    ;
+    lda #$3f
+    sta vram_buffer + 7, x
+    lda #$16
+    sta vram_buffer + 8, x
     lda user_palette + 1, y
-    write_vram_buffer
+    sta vram_buffer + 9, x
     ;
     ; 3rd color of selected subpalette
-    write_vram_buffer_addr $3f00 + 6 * 4 + 2
+    ;
+    lda #$3f
+    sta vram_buffer + 10, x
+    lda #$1a
+    sta vram_buffer + 11, x
     lda user_palette + 2, y
-    write_vram_buffer
+    sta vram_buffer + 12, x
     ;
     ; 4th color of selected subpalette
-    write_vram_buffer_addr $3f00 + 7 * 4 + 2
-    lda user_palette + 3, y
-    write_vram_buffer
     ;
-    stx vram_buffer_pos
+    lda #$3f
+    sta vram_buffer + 13, x
+    lda #$1e
+    sta vram_buffer + 14, x
+    lda user_palette + 3, y
+    sta vram_buffer + 15, x
+    ;
+    txa
+    add #15
+    sta vram_buffer_pos
 
     rts
 
