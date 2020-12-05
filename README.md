@@ -1,5 +1,5 @@
 # Kalle Paint
-A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6f](https://github.com/freem/asm6f). Only tested on FCEUX. The assembled program (`.nes`) is in `bin.zip`.
+A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `bin.zip`.
 
 ## How to assemble
 First, get the `.bin` files:
@@ -13,7 +13,7 @@ First, get the `.bin` files:
 Then, assemble:
 * Get `nes.asm` from [my NES utilities](https://github.com/qalle2/nes-util).
 * In `src/paint.asm`, make sure the path to `nes.asm` is correct.
-* Under the `src` directory, run `asm6f paint.asm ../paint.nes`
+* Under the `src` directory, run `asm6 paint.asm ../paint.nes`
 
 Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
 
@@ -87,6 +87,6 @@ Note: the first (topmost) color is shared between all subpalettes.
 * compatibility: NTSC and PAL
 
 ## To do
-* a Python script to convert an image file into an FCEUX movie that draws the image
 * test with other emulators
+* a Python script to convert an image file into an FCEUX movie that draws the image
 
