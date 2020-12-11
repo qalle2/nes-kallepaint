@@ -15,28 +15,22 @@ nmi_routine
     copy_via_a #$00, oam_addr
     copy_via_a #>sprite_data, oam_dma
 
-    ; update VRAM from vram_buffer
-    ; format: addr_hi (0 = terminator), addr_lo, value, ...
-    ;
-    ldx #$ff
--   inx
-    lda vram_buffer, x   ; address high or terminator
-    beq +
+    ; update VRAM from buffer
+    ldx #0
+-   lda vram_buffer_addrhi, x   ; high byte of address
+    beq +                       ; 0 = terminator
     sta ppu_addr
-    ;
-    inx
-    lda vram_buffer, x   ; address low
+    lda vram_buffer_addrlo, x   ; low byte of address
     sta ppu_addr
-    ;
-    inx
-    lda vram_buffer, x   ; value
+    lda vram_buffer_value, x    ; data byte
     sta ppu_data
+    inx
     jmp -
 
 +   lda #$00
     ;
     ; clear VRAM buffer (put terminator at beginning)
-    sta vram_buffer + 0
+    sta vram_buffer_addrhi + 0
     ;
     ; reset PPU address
     sta ppu_addr

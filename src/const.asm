@@ -20,11 +20,13 @@ paint_color        equ $0c    ; selected color (paint mode; 0-3)
 palette_cursor     equ $0d    ; cursor position (palette edit mode; 0-3)
 palette_subpal     equ $0e    ; selected subpalette (palette edit mode; 0-3)
 blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
-vram_buffer_pos    equ $10    ; offset of last written byte in vram_buffer (main loop)
+vram_buffer_pos    equ $10    ; offset of last byte written to vram_buffer_addrhi etc.
 temp               equ $11    ; temporary
 user_palette       equ $12    ; 16 bytes (each $00-$3f; offsets 4/8/12 are unused)
-vram_buffer        equ $22    ; to end of zero page (what to update in VRAM on next VBlank; format:
-                              ; addr hi (0=terminator), addr lo, byte, ...)
+;                               what to update in VRAM on next VBlank (up to 64 bytes each)
+vram_buffer_addrhi equ $22    ; high byte of address (0 = terminator)
+vram_buffer_addrlo equ $62    ; low byte of address
+vram_buffer_value  equ $a2    ; value
 sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
 vram_copy          equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
 

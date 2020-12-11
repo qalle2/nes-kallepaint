@@ -171,19 +171,15 @@ paint_mode_part2
 
     ; tell NMI to update paint color to cursor
     ;
+    inc vram_buffer_pos
     ldx vram_buffer_pos
     ;
     lda #$3f
-    sta vram_buffer + 1, x
+    sta vram_buffer_addrhi, x
     lda #$13
-    sta vram_buffer + 2, x
+    sta vram_buffer_addrlo, x
     pla
-    sta vram_buffer + 3, x
-    ;
-    inx
-    inx
-    inx
-    stx vram_buffer_pos
+    sta vram_buffer_value, x
 
     rts
 
@@ -268,7 +264,7 @@ get_cursor_color
     ; In: cursor_x, cursor_y, vram_buffer, user_palette
     ; Out: A
 
-    ; if color 0 of any subpal, no need to read vram_buffer
+    ; if color 0 of any subpal, no need to read vram_copy
     ldx paint_color
     beq ++
 

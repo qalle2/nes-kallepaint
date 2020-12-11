@@ -32,14 +32,14 @@ main_loop
     ; tell NMI routine to update blinking cursor (this is the first item in vram_buffer)
     ;
     lda #$3f
-    sta vram_buffer + 0
+    sta vram_buffer_addrhi + 0
     lda #$13
-    sta vram_buffer + 1
+    sta vram_buffer_addrlo + 0
     jsr get_blinking_cursor_color
-    sta vram_buffer + 2
+    sta vram_buffer_value + 0
     ;
     ; store position of last byte written
-    lda #2
+    lda #0
     sta vram_buffer_pos
 
     inc blink_timer
@@ -49,7 +49,7 @@ main_loop
     ; terminate VRAM buffer
     ldx vram_buffer_pos
     lda #$00
-    sta vram_buffer + 1, x
+    sta vram_buffer_addrhi + 1, x
 
     beq main_loop  ; unconditional
 
@@ -226,20 +226,16 @@ nt_at_update_to_vram_buffer
 
     pha
 
+    inc vram_buffer_pos
     ldx vram_buffer_pos
     ;
     lda vram_offset + 1
     ora #$20
-    sta vram_buffer + 1, x
+    sta vram_buffer_addrhi, x
     lda vram_offset + 0
-    sta vram_buffer + 2, x
+    sta vram_buffer_addrlo, x
     pla
-    sta vram_buffer + 3, x
-    ;
-    inx
-    inx
-    inx
-    stx vram_buffer_pos
+    sta vram_buffer_value, x
 
     rts
 

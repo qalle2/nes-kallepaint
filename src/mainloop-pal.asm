@@ -137,7 +137,7 @@ palette_edit_mode_part2
     add #tile_digits
     sta sprite_data + 16 * 4 + 1
 
-    ; tell NMI to update VRAM by appending 15 (5 * 3) bytes to vram_buffer
+    ; tell NMI to update 5 bytes in VRAM
     ;
     jsr get_user_pal_offset  ; A, X
     pha
@@ -147,21 +147,21 @@ palette_edit_mode_part2
     ; selected color in selected subpal -> background palette
     ;
     lda #$3f
-    sta vram_buffer + 1, x
+    sta vram_buffer_addrhi + 1, x
     pla
-    sta vram_buffer + 2, x
+    sta vram_buffer_addrlo + 1, x
     tay
     lda user_palette, y
-    sta vram_buffer + 3, x
+    sta vram_buffer_value + 1, x
     ;
     ; 1st color of all subpalettes
     ;
     lda #$3f
-    sta vram_buffer + 4, x
+    sta vram_buffer_addrhi + 2, x
     lda #$12
-    sta vram_buffer + 5, x
+    sta vram_buffer_addrlo + 2, x
     lda user_palette + 0
-    sta vram_buffer + 6, x
+    sta vram_buffer_value + 2, x
     ;
     ; offset of selected subpalette in user_palette -> Y
     lda palette_subpal
@@ -172,32 +172,32 @@ palette_edit_mode_part2
     ; 2nd color of selected subpalette
     ;
     lda #$3f
-    sta vram_buffer + 7, x
+    sta vram_buffer_addrhi + 3, x
     lda #$16
-    sta vram_buffer + 8, x
+    sta vram_buffer_addrlo + 3, x
     lda user_palette + 1, y
-    sta vram_buffer + 9, x
+    sta vram_buffer_value + 3, x
     ;
     ; 3rd color of selected subpalette
     ;
     lda #$3f
-    sta vram_buffer + 10, x
+    sta vram_buffer_addrhi + 4, x
     lda #$1a
-    sta vram_buffer + 11, x
+    sta vram_buffer_addrlo + 4, x
     lda user_palette + 2, y
-    sta vram_buffer + 12, x
+    sta vram_buffer_value + 4, x
     ;
     ; 4th color of selected subpalette
     ;
     lda #$3f
-    sta vram_buffer + 13, x
+    sta vram_buffer_addrhi + 5, x
     lda #$1e
-    sta vram_buffer + 14, x
+    sta vram_buffer_addrlo + 5, x
     lda user_palette + 3, y
-    sta vram_buffer + 15, x
+    sta vram_buffer_value + 5, x
     ;
     txa
-    add #15
+    add #5
     sta vram_buffer_pos
 
     rts
