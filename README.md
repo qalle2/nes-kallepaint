@@ -1,5 +1,5 @@
 # Kalle Paint
-A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [asm6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `bin.zip`.
+A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `bin.zip`.
 
 ## How to assemble
 First, get the `.bin` files:
@@ -62,8 +62,6 @@ Note: changing the subpalette has no visible effect if the selected square only 
 ![palette edit mode](snap/paint2.png)
 
 Indicators:
-* `X`: horizontal position of paint/attribute cursor (`00`&hellip;`63`)
-* `Y`: vertical position of paint/attribute cursor (`00`&hellip;`55`)
 * `P`: number of subpalette being edited (`0`&hellip;`3`)
 * `C`: NES color number of selected color in hexadecimal (`00`&hellip;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
 * colored squares: colors in selected subpalette

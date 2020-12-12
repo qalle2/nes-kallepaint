@@ -1,0 +1,4 @@
+# find labels in an ASM6 list file
+clear
+grep "^[0-9A-F]\{5\} \{27\}[A-Za-z]" paint.lst | more
+
