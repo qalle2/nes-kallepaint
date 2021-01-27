@@ -61,17 +61,20 @@ paint_arrowlogic
 enter_attribute_editor
         ; Switch to attribute edit mode.
 
-        lda #$ff                 ; hide paint cursor sprite
+        ; hide paint cursor sprite
+        lda #$ff
         sta sprite_data + 0 + 0
 
-        lda cursor_x    ; make cursor coordinates a multiple of four
+        ; make cursor coordinates a multiple of four
+        lda cursor_x
         and #%00111100
         sta cursor_x
         lda cursor_y
         and #%00111100
         sta cursor_y
 
-        inc mode  ; switch mode
+        ; switch mode
+        inc mode
 
         rts
 
@@ -81,45 +84,53 @@ paint_check_arrows
         ; React to arrows (including diagonal directions).
         ; Changes: cursor_x, cursor_y
 
-        lda joypad_status      ; check horizontal
+        ; check horizontal
+        lda joypad_status
         lsr
-        bcs pnt_r
+        bcs paint_right
         lsr
-        bcs pnt_l
-        bcc pnt_cv             ; unconditional
-pnt_r   lda cursor_x           ; right
+        bcs paint_left
+        bcc paint_check_vert   ; unconditional
+paint_right
+        lda cursor_x
         sec
         adc paint_cursor_type
-        bpl pnt_sh             ; unconditional
-pnt_l   lda cursor_x           ; left
+        bpl paint_store_horz   ; unconditional
+paint_left
+        lda cursor_x
         clc
         sbc paint_cursor_type
-pnt_sh  and #%00111111         ; store horizontal
+paint_store_horz               ; store horizontal
+        and #%00111111
         sta cursor_x
 
-pnt_cv  lda joypad_status      ; check vertical
+paint_check_vert               ; check vertical
+        lda joypad_status
         lsr
         lsr
         lsr
-        bcs pnt_d
+        bcs paint_down
         lsr
-        bcs pnt_u
+        bcs paint_up
         rts
-pnt_d   lda cursor_y           ; down
+paint_down
+        lda cursor_y
         sec
         adc paint_cursor_type
         cmp #56
-        bne pnt_sv
+        bne paint_store_vert
         lda #0
-        beq pnt_sv             ; unconditional
-pnt_u   lda cursor_y           ; up
+        beq paint_store_vert   ; unconditional
+paint_up
+        lda cursor_y
         clc
         sbc paint_cursor_type
-        bpl pnt_sv
+        bpl paint_store_vert
         lda #56
         clc
         sbc paint_cursor_type
-pnt_sv  sta cursor_y           ; store vertical
+paint_store_vert               ; store vertical
+        sta cursor_y
         rts
 
 ; --------------------------------------------------------------------------------------------------
@@ -180,90 +191,80 @@ prepare_paint
         ; compute vram_offset for a name table byte; bits:
         ; cursor_y = 00ABCDEF, cursor_x = 00abcdef -> vram_offset = 000000AB CDEabcde
         ;
-        lda cursor_y
+        lda cursor_y         ; 00ABCDEF
         lsr
         lsr
         lsr
-        lsr
+        lsr                  ; 000000AB
         sta vram_offset + 1
         ;
-        lda cursor_y
-        and #%00001110
+        lda cursor_y         ; 00ABCDEF
+        and #%00001110       ; 0000CDE0
         asl
         asl
         asl
-        asl
+        asl                  ; CDE00000
         sta temp
-        lda cursor_x
-        lsr
-        ora temp
+        lda cursor_x         ; 00abcdef
+        lsr                  ; 000abcde
+        ora temp             ; CDEabcde
         sta vram_offset + 0
 
         jsr get_vram_copy_addr
 
-        ; get byte to write
-
+        ; get byte to write:
+        ; - if cursor is small, replace a bit pair (pixel) in old byte (tile)
+        ; - if cursor is big, just replace entire byte (four pixels)
         lda paint_cursor_type
         beq +
-
-        ; cursor is big; just fetch correct solid color tile
         ldx paint_color
         lda solids, x
-        jmp ++
+        jmp overwrite_byte
 
-        ; cursor is small; read old byte and replace a bit pair
-+       ldy #0
-        lda (vram_copy_addr), y
-        jsr replace_bit_pair
-
-        ; overwrite byte
-++      ldy #0
-        sta (vram_copy_addr), y
-        jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
-        rts
-
-        ; tiles of solid color 0/1/2/3 (2 bits = 1 pixel)
 solids  db %00000000, %01010101, %10101010, %11111111
 
-replace_bit_pair
-        ; Replace a bit pair in a byte without modifying other bits. (Used by prepare_paint.)
-        ;   A: byte to modify
-        ;   cursor_x, cursor_y: which bit pair to modify
-        ;   paint_color: value of new bit pair
-
+        ; read old byte and replace a bit pair
+        ;
++       ldy #0
+        lda (vram_copy_addr), y
         pha
-
-        ; position within tile (0-3) -> A, X
+        ;
+        ; position within tile (0/2/4/6) -> X
         lda cursor_x
-        lsr
+        lsr             ; LSB to carry
         lda cursor_y
         rol
         and #%00000011
+        eor #%00000011
+        asl
         tax
-
-        ; (position within tile) * 4 + paint_color -> Y
+        ;
+        ; shifted AND mask for clearing bit pair -> temp
+        ; shifted paint_color for setting bit pair -> A
+        lda #%11111100
+        sta temp
+        lda paint_color
+        cpx #0
+        beq +
+-       sec
+        rol temp
         asl
-        asl
-        ora paint_color
-        tay
-
-        ; pull old byte, clear bits to replace, write new bits
+        dex
+        bne -
+        ;
+        ; pull byte to modify, clear bit pair, insert new bit pair
++       tay
         pla
-        and bitpair_clear_masks, x
-        ora bitpair_set_masks, y
+        and temp
+        sty temp
+        ora temp
 
+        ; overwrite byte and tell NMI to copy A to VRAM
+overwrite_byte
+        ldy #0
+        sta (vram_copy_addr), y
+        jsr nt_at_update_to_vram_buffer
         rts
-
-bitpair_clear_masks
-        ; clear one bit pair
-        db %00111111, %11001111, %11110011, %11111100
-
-bitpair_set_masks
-        ; set one bit pair
-        db %00000000, %01000000, %10000000, %11000000
-        db %00000000, %00010000, %00100000, %00110000
-        db %00000000, %00000100, %00001000, %00001100
-        db %00000000, %00000001, %00000010, %00000011
 
 ; --------------------------------------------------------------------------------------------------
 
@@ -298,4 +299,3 @@ get_cursor_color
 
 ++      lda user_palette, x
         rts
-

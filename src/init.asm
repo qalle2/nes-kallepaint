@@ -105,11 +105,6 @@ reset
 -       bit ppu_status
         bpl -
 
-        ; show background and sprites on entire screen,
-        ; don't use R/G/B de-emphasis or grayscale mode
-        lda #%00011110
-        sta ppu_mask
-
         ; enable NMI,
         ; use 8*8-pixel sprites,
         ; use pattern table 0 for background and 1 for sprites,
@@ -117,6 +112,11 @@ reset
         ; use name table 0
         lda #%10001000
         sta ppu_ctrl
+
+        ; show background and sprites on entire screen,
+        ; don't use R/G/B de-emphasis or grayscale mode
+        lda #%00011110
+        sta ppu_mask
 
         jmp main_loop
 
@@ -151,23 +151,22 @@ initial_sprite_data
         db $ff, tile_attrcur, %11000000, 0  ; #4: cursor bottom right
 
         ; palette editor
-        db        $ff, tile_largecur, %00000000, 15 * 8  ; #5:  cursor
-        db 12 * 8 - 1, tile_p,        %00000001, 14 * 8  ; #6:  "P"
-        db 12 * 8 - 1, $00,           %00000001, 16 * 8  ; #7:  subpalette number
-        db 13 * 8 - 1, $0c,           %00000001, 14 * 8  ; #8:  "C"
-        db 13 * 8 - 1, $00,           %00000001, 15 * 8  ; #9:  color number - 16s
-        db 13 * 8 - 1, $00,           %00000001, 16 * 8  ; #10: color number - ones
-        db 14 * 8 - 1, tile_colorind, %00000000, 15 * 8  ; #11: color 0
-        db 15 * 8 - 1, tile_colorind, %00000001, 15 * 8  ; #12: color 1
-        db 16 * 8 - 1, tile_colorind, %00000010, 15 * 8  ; #13: color 2
-        db 17 * 8 - 1, tile_colorind, %00000011, 15 * 8  ; #14: color 3
-        db 12 * 8 - 1, tile_cover,    %00000001, 15 * 8  ; #15: cover (to left of subpal number)
-        db 14 * 8 - 1, tile_cover,    %00000001, 14 * 8  ; #16: cover (to left of color 0)
-        db 14 * 8 - 1, tile_cover,    %00000001, 16 * 8  ; #17: cover (to right of color 0)
-        db 15 * 8 - 1, tile_cover,    %00000001, 14 * 8  ; #18: cover (to left of color 1)
-        db 15 * 8 - 1, tile_cover,    %00000001, 16 * 8  ; #19: cover (to right of color 1)
-        db 16 * 8 - 1, tile_cover,    %00000001, 14 * 8  ; #20: cover (to left of color 2)
-        db 16 * 8 - 1, tile_cover,    %00000001, 16 * 8  ; #21: cover (to right of color 2)
-        db 17 * 8 - 1, tile_cover,    %00000001, 14 * 8  ; #22: cover (to left of color 3)
-        db 17 * 8 - 1, tile_cover,    %00000001, 16 * 8  ; #23: cover (to right of color 3)
-
+        db        $ff, tile_largecur, %00000000, 29 * 8  ; #5:  cursor
+        db 22 * 8 - 1, tile_p,        %00000001, 28 * 8  ; #6:  "P"
+        db 22 * 8 - 1, $00,           %00000001, 30 * 8  ; #7:  subpalette number
+        db 23 * 8 - 1, $0c,           %00000001, 28 * 8  ; #8:  "C"
+        db 23 * 8 - 1, $00,           %00000001, 29 * 8  ; #9:  color number - 16s
+        db 23 * 8 - 1, $00,           %00000001, 30 * 8  ; #10: color number - ones
+        db 24 * 8 - 1, tile_colorind, %00000000, 29 * 8  ; #11: color 0
+        db 25 * 8 - 1, tile_colorind, %00000001, 29 * 8  ; #12: color 1
+        db 26 * 8 - 1, tile_colorind, %00000010, 29 * 8  ; #13: color 2
+        db 27 * 8 - 1, tile_colorind, %00000011, 29 * 8  ; #14: color 3
+        db 22 * 8 - 1, tile_cover,    %00000001, 29 * 8  ; #15: cover (to left of subpal number)
+        db 24 * 8 - 1, tile_cover,    %00000001, 28 * 8  ; #16: cover (to left of color 0)
+        db 24 * 8 - 1, tile_cover,    %00000001, 30 * 8  ; #17: cover (to right of color 0)
+        db 25 * 8 - 1, tile_cover,    %00000001, 28 * 8  ; #18: cover (to left of color 1)
+        db 25 * 8 - 1, tile_cover,    %00000001, 30 * 8  ; #19: cover (to right of color 1)
+        db 26 * 8 - 1, tile_cover,    %00000001, 28 * 8  ; #20: cover (to left of color 2)
+        db 26 * 8 - 1, tile_cover,    %00000001, 30 * 8  ; #21: cover (to right of color 2)
+        db 27 * 8 - 1, tile_cover,    %00000001, 28 * 8  ; #22: cover (to left of color 3)
+        db 27 * 8 - 1, tile_cover,    %00000001, 30 * 8  ; #23: cover (to right of color 3)

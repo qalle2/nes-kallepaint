@@ -23,10 +23,10 @@ blink_timer        equ $0f    ; cursor blink timer (attribute/palette edit mode)
 vram_buffer_pos    equ $10    ; offset of last byte written to vram_buffer_addrhi etc.
 temp               equ $11    ; temporary
 user_palette       equ $12    ; 16 bytes (each $00-$3f; offsets 4/8/12 are unused)
-;                               what to update in VRAM on next VBlank (up to 64 bytes each)
-vram_buffer_addrhi equ $22    ; high byte of address (0 = terminator)
-vram_buffer_addrlo equ $62    ; low byte of address
-vram_buffer_value  equ $a2    ; value
+;                               what to update in VRAM on next VBlank (up to 64 bytes each):
+vram_buffer_addrhi equ $22    ; high bytes of addresses (0 = terminator)
+vram_buffer_addrlo equ $62    ; low bytes of addresses
+vram_buffer_value  equ $a2    ; values
 sprite_data        equ $0200  ; $100 bytes (see initial_sprite_data for layout)
 vram_copy          equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
 
@@ -47,14 +47,14 @@ joypad2    equ $4017
 ; --- Constants - non-addresses -------------------------------------------------------------------
 
 ; joypad bitmasks
-button_a      equ 1 << 7
-button_b      equ 1 << 6
-button_select equ 1 << 5
-button_start  equ 1 << 4
-button_up     equ 1 << 3
-button_down   equ 1 << 2
-button_left   equ 1 << 1
-button_right  equ 1 << 0
+button_a      equ %10000000
+button_b      equ %01000000
+button_select equ %00100000
+button_start  equ %00010000
+button_up     equ %00001000
+button_down   equ %00000100
+button_left   equ %00000010
+button_right  equ %00000001
 
 ; default user palette
 defcol_bg equ $0f  ; background (all subpalettes)
@@ -106,18 +106,17 @@ delay       equ 10   ; paint cursor move repeat delay (frames)
         include "mainloop-attr.asm"   ; main loop - attribute editor
         include "mainloop-pal.asm"    ; main loop - palette editor
         include "miscsubs.asm"        ; miscellaneous subroutines
-        include "nmi.asm"             ; non-maskable interrupt routine
+        include "interrupt.asm"       ; interrupt routines
 
         ; interrupt vectors
         pad $fffa, $ff
-        dw nmi_routine, reset, $ffff
+        dw nmi_routine, reset, irq_routine
         pad $10000, $ff
 
 ; --- CHR ROM -------------------------------------------------------------------------------------
 
         base 0
-        incbin "../background.bin"  ; 256 tiles (4 KiB)
+        incbin "../bin/background.bin"  ; 256 tiles (4 KiB)
         pad $1000, $ff
-        incbin "../sprites.bin"     ; 256 tiles (4 KiB)
+        incbin "../bin/sprites.bin"     ; 256 tiles (4 KiB)
         pad $2000, $ff
-

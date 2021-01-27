@@ -1,21 +1,26 @@
 ; Kalle Paint - main loop
 
 main_loop
-        bit run_main_loop  ; wait until NMI routine has run
+        ; wait until NMI routine has run
+        bit run_main_loop
         bpl main_loop
 
-        lsr run_main_loop  ; prevent main loop from running again until after next NMI
+        ; prevent main loop from running again until after next NMI
+        lsr run_main_loop
 
-        lda joypad_status       ; store previous joypad status
+        ; store previous joypad status
+        lda joypad_status
         sta prev_joypad_status
 
-        ldx #$01           ; initialize joypads
-        stx joypad_status  ; set LSB of variable to detect end of loop
+        ; read first joypad
+        ;
+        ; initialize; set LSB of variable to detect end of loop
+        ldx #$01
+        stx joypad_status
         stx joypad1
         dex
         stx joypad1
-
-        ; read 1st joypad 8 times; for each button, compute OR of bits 1 and 0
+        ; read 1st joypad 8 times; for each button, compute OR of two LSBs
         ; bits of joypad_status: A, B, select, start, up, down, left, right
 -       clc
         lda joypad1
@@ -72,4 +77,3 @@ jump_table_hi
         dh paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
 jump_table_lo
         dl paint_mode - 1, attribute_edit_mode - 1, palette_edit_mode - 1
-

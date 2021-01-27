@@ -1,26 +1,22 @@
-# This batch file will DELETE files. Use at your own risk.
-# Intended for developer's personal use.
+# Note: this script will DELETE files. Use at your own risk.
 
-# Optimize PNG files
-pngout gfx/sprites.png -q
+# delete compressed binaries
+rm -f bin/*.gz
 
-# Encode background CHR data
-rm -f background.bin
-python3 gfx/background.py background.bin
+# optimize PNG files
+pngout sprites.png -q
 
-# Encode sprite CHR data
-rm -f sprites.bin
-python3 ../nes-util/nes_chr_encode.py gfx/sprites.png sprites.bin
+# generate background CHR data
+python3 generate-background.py bin/background.bin
 
-# Assemble
+# encode sprite CHR data
+python3 ../nes-util/nes_chr_encode.py sprites.png bin/sprites.bin
+
+# assemble
 cd src
 asm6 paint.asm -l ../paint.nes ../paint.lst
 cd ..
 
-# Compress binaries
-rm -f bin.zip
-7z a -mx9 -bd -bso0 bin.zip *.bin *.nes
-
-# Delete temporary files
-rm *.bin
-
+# compress binaries
+cp paint.nes bin/
+gzip --best bin/*.bin bin/*.nes

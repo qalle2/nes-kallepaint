@@ -8,27 +8,31 @@ palette_edit_mode
 
 +       lda joypad_status
         lsr
-        bcs pal_i1         ; right
+        bcs pal_ed_inc1    ; right
         lsr
-        bcs pal_d1         ; left
+        bcs pal_ed_dec1    ; left
         lsr
-        bcs pal_d          ; down
+        bcs pal_ed_down    ; down
         lsr
-        bcs pal_u          ; up
+        bcs pal_ed_up      ; up
         lsr
-        bcs pal_cyc        ; start
+        bcs pal_ed_cycle   ; start
         lsr
-        bcs pal_mod        ; select; ends with rts
+        bcs to_paint_mode  ; select; ends with rts
         lsr
-        bcs pal_d16        ; B
-        bne pal_i16        ; A
+        bcs pal_ed_dec16   ; B
+        bne pal_ed_inc16   ; A
 
         beq palette_edit_mode_part2  ; unconditional
 
 ; --------------------------------------------------------------------------------------------------
 
-pal_mod lda #$ff            ; switch to paint mode
-        ldx #(5 * 4)        ; hide palette editor sprites
+to_paint_mode
+        ; switch to paint mode
+
+        ; hide palette editor sprites (#5-#23)
+        lda #$ff
+        ldx #(5 * 4)
 -       sta sprite_data, x
         inx
         inx
@@ -36,37 +40,47 @@ pal_mod lda #$ff            ; switch to paint mode
         inx
         cpx #(24 * 4)
         bne -
-        lda #0              ; switch mode
+
+        ; switch mode
+        lda #0
         sta mode
+
         rts
 
 ; --------------------------------------------------------------------------------------------------
 
-pal_cyc lda palette_subpal           ; cycle subpalette (0 -> 1 -> 2 -> 3 -> 0)
+pal_ed_cycle                         ; cycle subpalette (0 -> 1 -> 2 -> 3 -> 0)
+        lda palette_subpal
         adc #0                       ; carry is always set
         and #%00000011
         sta palette_subpal
         bpl palette_edit_mode_part2  ; unconditional
 
-pal_d   ldx palette_cursor           ; move down
+pal_ed_down                          ; move down
+        ldx palette_cursor
         inx
-        bpl pal_sv                   ; unconditional
-pal_u   ldx palette_cursor           ; move up
+        bpl pal_ed_sto_vert          ; unconditional
+pal_ed_up                            ; move up
+        ldx palette_cursor
         dex
-pal_sv  txa                          ; store vertical
+pal_ed_sto_vert                      ; store vertical
+        txa
         and #%00000011
         sta palette_cursor
         tax
         bpl palette_edit_mode_part2  ; unconditional
 
-pal_i1  jsr get_user_pal_offset      ; increment ones; offset to A, X
+pal_ed_inc1                          ; increment ones
+        jsr get_user_pal_offset      ; to A, X
         ldy user_palette, x
         iny
-        bpl pal_s1                   ; unconditional
-pal_d1  jsr get_user_pal_offset      ; decrement ones; offset to A, X
+        bpl pal_ed_store1            ; unconditional
+pal_ed_dec1                          ; decrement ones
+        jsr get_user_pal_offset      ; to A, X
         ldy user_palette, x
         dey
-pal_s1  tya                          ; store change of ones
+pal_ed_store1                        ; store ones
+        tya
         and #%00001111
         sta temp
         ;
@@ -77,18 +91,20 @@ pal_s1  tya                          ; store change of ones
         ;
         bpl palette_edit_mode_part2  ; unconditional
 
-pal_i16 jsr get_user_pal_offset      ; increment sixteens; offset to A, X
+pal_ed_inc16                         ; increment sixteens
+        jsr get_user_pal_offset      ; to A, X
         lda user_palette, x
         clc
         adc #$10
-        bpl pal_s16                  ; unconditional
-pal_d16 jsr get_user_pal_offset      ; decrement sixteens; offset to A, X
+        bpl pal_ed_store16           ; unconditional
+pal_ed_dec16                         ; decrement sixteens
+        jsr get_user_pal_offset      ; to A, X
         lda user_palette, x
         sec
         sbc #$10
-pal_s16 and #%00111111               ; store change of sixteens
+pal_ed_store16                       ; store sixteens
+        and #%00111111
         sta user_palette, x
-        ;
         bpl palette_edit_mode_part2  ; unconditional
 
 ; -------------------------------------------------------------------------------------------------
@@ -103,12 +119,12 @@ palette_edit_mode_part2
         asl
         asl
         asl
-        adc #(14 * 8 - 1)  ; carry is always clear
+        adc #(24 * 8 - 1)  ; carry is always clear
         sta sprite_data + 5 * 4 + 0
 
         ; update tiles of color number 16s and ones
         ;
-        jsr get_user_pal_offset  ; A, X
+        jsr get_user_pal_offset  ; to A, X
         ;
         lda user_palette, x
         lsr
@@ -123,13 +139,12 @@ palette_edit_mode_part2
 
         ; tell NMI to update 5 bytes in VRAM
         ;
-        jsr get_user_pal_offset  ; A, X
+        jsr get_user_pal_offset  ; to A, X
         pha
         ;
         ldx vram_buffer_pos
         ;
         ; selected color in selected subpal -> background palette
-        ;
         lda #$3f
         sta vram_buffer_addrhi + 1, x
         pla
@@ -139,7 +154,6 @@ palette_edit_mode_part2
         sta vram_buffer_value + 1, x
         ;
         ; 1st color of all subpalettes
-        ;
         lda #$3f
         sta vram_buffer_addrhi + 2, x
         lda #$12
@@ -154,7 +168,6 @@ palette_edit_mode_part2
         tay
         ;
         ; 2nd color of selected subpalette
-        ;
         lda #$3f
         sta vram_buffer_addrhi + 3, x
         lda #$16
@@ -163,7 +176,6 @@ palette_edit_mode_part2
         sta vram_buffer_value + 3, x
         ;
         ; 3rd color of selected subpalette
-        ;
         lda #$3f
         sta vram_buffer_addrhi + 4, x
         lda #$1a
@@ -172,7 +184,6 @@ palette_edit_mode_part2
         sta vram_buffer_value + 4, x
         ;
         ; 4th color of selected subpalette
-        ;
         lda #$3f
         sta vram_buffer_addrhi + 5, x
         lda #$1e
@@ -203,4 +214,3 @@ get_user_pal_offset
         ora palette_cursor
 +       tax
         rts
-

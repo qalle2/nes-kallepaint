@@ -1,21 +1,14 @@
 # Kalle Paint
-A paint program for the NES (Nintendo Entertainment System). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `bin.zip`.
+A paint program for the Nintendo Entertainment System (NES). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `paint.nes.gz`.
 
 ## How to assemble
-First, get the `.bin` files:
-  * Either extract them from `bin.zip`&hellip;
-  * &hellip;or generate them using Python scripts:
-    * Install Python 3.
-    * Get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util).
-    * Generate `background.bin`: `python3 gfx/background.py background.bin`
-    * Generate `sprites.bin`: `python3 nes_chr_encode.py gfx/sprites.png sprites.bin`
-
-Then, assemble:
-* Get `nes.asm` from [my NES utilities](https://github.com/qalle2/nes-util).
-* In `src/paint.asm`, make sure the path to `nes.asm` is correct.
-* Under the `src` directory, run `asm6 paint.asm ../paint.nes`
-
-Note: the Linux script `assemble` is intended for my personal use. Don't run it before reading it.
+* Get the background CHR data:
+  * Either extract `bin/background.bin.gz` to `bin/`&hellip;
+  * &hellip;or run `python3 generate-background.py bin/background.bin`
+* Get the sprite CHR data:
+  * Either extract `bin/sprites.bin.gz` to `bin/` &hellip;
+  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py sprites.png bin/sprites.bin`
+* Assemble: go to the `src` directory and run `asm6 paint.asm ../paint.nes`
 
 ## Features
 * 64&times;56 pixels (4&times;4 hardware pixels each)
@@ -33,7 +26,7 @@ By default, the screen is filled with the first color of the first subpalette.
 There are three modes. Press select at any time to cycle between them.
 
 ### Paint mode
-![paint mode](snap/paint1.png)
+![paint mode](snap1.png)
 
 The program starts in this mode. The cursor reflects the selected brush size and paint color.
 
@@ -59,7 +52,7 @@ Buttons:
 Note: changing the subpalette has no visible effect if the selected square only contains the first color of a subpalette. (That color is shared between all subpalettes.)
 
 ### Palette edit mode
-![palette edit mode](snap/paint2.png)
+![palette edit mode](snap2.png)
 
 Indicators:
 * `P`: number of subpalette being edited (`0`&hellip;`3`)
@@ -87,4 +80,3 @@ Note: the first (topmost) color is shared between all subpalettes.
 ## To do
 * test with other emulators
 * a Python script to convert an image file into an FCEUX movie that draws the image
-

@@ -30,7 +30,7 @@ attr_buttons_done
         asl
         sta sprite_data + 4 + 3
         sta sprite_data + 3 * 4 + 3
-        adc #8  ; carry is always clear
+        adc #8                       ; carry is always clear
         sta sprite_data + 2 * 4 + 3
         sta sprite_data + 4 * 4 + 3
         ;
@@ -38,10 +38,10 @@ attr_buttons_done
         lda cursor_y
         asl
         asl
-        adc #(8 - 1)  ; carry is always clear
+        adc #(8 - 1)                 ; carry is always clear
         sta sprite_data + 4 + 0
         sta sprite_data + 2 * 4 + 0
-        adc #8  ; carry is always clear
+        adc #8                       ; carry is always clear
         sta sprite_data + 3 * 4 + 0
         sta sprite_data + 4 * 4 + 0
 
@@ -57,7 +57,8 @@ enter_palette_editor
         sta palette_cursor
         sta palette_subpal
 
-        lda #$ff            ; hide attribute editor sprites
+        ; hide attribute editor sprites (#1-#4)
+        lda #$ff
         ldx #(1 * 4)
 -       sta sprite_data, x
         inx
@@ -67,7 +68,8 @@ enter_palette_editor
         cpx #(5 * 4)
         bne -
 
--       lda initial_sprite_data, x  ; show palette editor sprites
+        ; show palette editor sprites (#5-#23)
+-       lda initial_sprite_data, x
         sta sprite_data, x
         inx
         inx
@@ -76,7 +78,8 @@ enter_palette_editor
         cpx #(24 * 4)
         bne -
 
-        inc mode  ; switch mode
+        ; switch mode
+        inc mode
 
         rts
 
@@ -90,29 +93,24 @@ prepare_attr_change
         jsr get_vram_copy_addr
         jsr get_pos_in_attr_byte  ; 0/2/4/6 to X
 
-        ; increment a bit pair in byte
+        ; get byte to modify
         ldy #0
         lda (vram_copy_addr), y
-        jsr increment_bit_pair      ; modify A according to X
+
+        ; increment one bit pair in a byte without modifying other bits
+        ; (algorithm: if LSB clear, only flip it, otherwise flip MSB too)
+        pha
+        and bitpair_increment_masks, x
+        beq +
+        inx                             ; LSB was set; increment LUT index to flip both bits
++       pla
+        eor bitpair_increment_masks, x
+
+        ; store modified byte
         ldy #0
         sta (vram_copy_addr), y
 
         jsr nt_at_update_to_vram_buffer  ; tell NMI to copy A to VRAM
-        rts
-
-increment_bit_pair
-        ; Increment one bit pair in a byte (00 -> 01 -> 10 -> 11 -> 00) without modifying other bits.
-        ; (Used by prepare_attr_change.)
-        ;   A: byte to modify
-        ;   X: which bit pair to modify (0/2/4/6; 0 = least significant)
-        ; The algorithm: if LSB is clear, only flip it, otherwise flip MSB too.
-
-        pha
-        and bitpair_increment_masks, x  ; if LSB set, increment LUT index to flip both bits
-        beq +
-        inx
-+       pla
-        eor bitpair_increment_masks, x
         rts
 
 bitpair_increment_masks
@@ -131,34 +129,39 @@ attr_check_arrows
 
         lda joypad_status
         lsr
-        bcs att_r
+        bcs attr_right
         lsr
-        bcs att_l
+        bcs attr_left
         lsr
-        bcs att_d
+        bcs attr_down
         lsr
-        bcs att_u
+        bcs attr_up
         rts
 
-att_r   lda cursor_x    ; right
-        adc #(4 - 1)    ; carry is always set
-        bcc att_sh      ; unconditional
-att_l   lda cursor_x    ; left
-        sbc #4          ; carry is always set
-att_sh  and #%00111111  ; store horizontal
+attr_right
+        lda cursor_x
+        adc #(4 - 1)         ; carry is always set
+        bcc attr_store_horz  ; unconditional
+attr_left
+        lda cursor_x
+        sbc #4               ; carry is always set
+attr_store_horz              ; store horizontal
+        and #%00111111
         sta cursor_x
         rts
 
-att_d   lda cursor_y   ; down
-        adc #(4 - 1)   ; carry is always set
+attr_down
+        lda cursor_y
+        adc #(4 - 1)         ; carry is always set
         cmp #56
-        bne att_sv
+        bne attr_store_vert
         lda #0
-        beq att_sv     ; unconditional
-att_u   lda cursor_y
-        sbc #4         ; carry is always set
-        bpl att_sv
+        beq attr_store_vert  ; unconditional
+attr_up
+        lda cursor_y
+        sbc #4               ; carry is always set
+        bpl attr_store_vert
         lda #(56 - 4)
-att_sv  sta cursor_y   ; store vertical
+attr_store_vert              ; store vertical
+        sta cursor_y
         rts
-

@@ -1,15 +1,18 @@
-; Kalle Paint - non-maskable interrupt routine
+; Kalle Paint - interrupt routines
 
 nmi_routine
-        pha  ; push A, X, Y
+        ; push A, X, Y
+        pha
         txa
         pha
         tya
         pha
 
-        bit ppu_status  ; reset ppu_addr/ppu_scroll latch
+        ; reset ppu_addr/ppu_scroll latch
+        bit ppu_status
 
-        lda #$00           ; do OAM DMA
+        ; do OAM DMA
+        lda #$00
         sta oam_addr
         lda #>sprite_data
         sta oam_dma
@@ -28,23 +31,28 @@ nmi_routine
 
 +       lda #$00
         ;
-        sta vram_buffer_addrhi + 0  ; clear buffer (put terminator at beginning)
+        ; clear buffer (put terminator at beginning)
+        sta vram_buffer_addrhi + 0
         ;
-        sta ppu_addr  ; reset PPU address
+        ; reset PPU address
+        sta ppu_addr
         sta ppu_addr
         ;
-        sta ppu_scroll  ; set PPU scroll
+        ; set PPU scroll
+        sta ppu_scroll
         lda #(256 - 8)
         sta ppu_scroll
 
-        sec                ; set flag to let main loop run once
+        ; set flag to let main loop run once
+        sec
         ror run_main_loop
 
-        pla  ; pull Y, X, A
+        ; pull Y, X, A
+        pla
         tay
         pla
         tax
         pla
 
+irq_routine
         rti
-
