@@ -1,14 +1,16 @@
 # Kalle Paint
-A paint program for the Nintendo Entertainment System (NES). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Only tested on FCEUX. The assembled program (`.nes`) is in `paint.nes.gz`.
+A paint program for the Nintendo Entertainment System (NES). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Tested on FCEUX and Mednafen. The assembled program (`.nes`) is in `paint.nes.gz`.
 
 ## How to assemble
 * Get the background CHR data:
-  * Either extract `bin/background.bin.gz` to `bin/`&hellip;
-  * &hellip;or run `python3 generate-background.py bin/background.bin`
+  * Either extract `chr-background.bin.gz`&hellip;
+  * &hellip;or run `python3 chr-background-generate.py chr-background.bin`
 * Get the sprite CHR data:
-  * Either extract `bin/sprites.bin.gz` to `bin/` &hellip;
-  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py sprites.png bin/sprites.bin`
-* Assemble: go to the `src` directory and run `asm6 paint.asm ../paint.nes`
+  * Either extract `chr-sprites.bin.gz`&hellip;
+  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py chr-sprites.png chr-sprites.bin`
+* Assemble: run `asm6 paint.asm paint.nes`
+
+Note: The Linux script `assemble.sh` is for my personal use only. Do not run it without reading it.
 
 ## Features
 * 64&times;56 pixels (4&times;4 hardware pixels each)
