@@ -85,11 +85,11 @@ delay       equ 10   ; paint cursor move repeat delay (frames)
 
 ; --- iNES header ---------------------------------------------------------------------------------
 
-        ; https://wiki.nesdev.org/w/index.php/INES
+        ; see https://wiki.nesdev.org/w/index.php/INES
         base $0000
         db "NES", $1a            ; file id
         db 1, 1                  ; 16 KiB PRG ROM, 8 KiB CHR ROM
-        db %00000000, %00000000  ; NROM mapper, horizontal mirroring
+        db %00000001, %00000000  ; NROM mapper, vertical name table mirroring
         pad $0010, $00           ; unused
 
 ; --- Start of PRG ROM ----------------------------------------------------------------------------
@@ -145,14 +145,9 @@ reset   ; initialize the NES; see https://wiki.nesdev.org/w/index.php/Init_code
         bpl -
         ;
         ; hide sprites except paint cursor (#0)
-        lda #$ff
         ldx #(1*4)
--       sta sprite_data, x
-        inx
-        inx
-        inx
-        inx
-        bne -
+        ldy #63
+        jsr hide_sprites  ; X = first byte index, Y = count
         ;
         ; misc
         lda #30
@@ -496,11 +491,9 @@ paint_mode_part2
         sta sprite_data + 0 + 0
         ;
         ; tile
-        lda #tile_smallcur
         ldx paint_cursor_type
-        beq +
-        lda #tile_largecur
-+       sta sprite_data + 0 + 1
+        lda cursor_tiles, x
+        sta sprite_data + 0 + 1
 
         jsr get_cursor_color  ; to A
         pha
@@ -519,6 +512,9 @@ paint_mode_part2
 
         rts
 
+cursor_tiles
+        db tile_smallcur, tile_largecur  ; paint_cursor_type -> paint cursor tile
+
 prepare_paint
         ; Prepare a paint operation to be done by NMI routine. (Used by paint_mode_part2.)
         ; Note: we've scrolled screen vertically so that VRAM $2000 is at top left of visible area.
@@ -528,22 +524,20 @@ prepare_paint
         ;
         lda cursor_y         ; 00ABCDEF
         lsr a
+        pha                  ; 000ABCDE
         lsr a
         lsr a
-        lsr a                ; 000000AB
-        sta vram_offset + 1
+        lsr a
+        sta vram_offset + 1  ; 000000AB
         ;
-        lda cursor_y         ; 00ABCDEF
-        and #%00001110       ; 0000CDE0
-        asl a
-        asl a
-        asl a
-        asl a                ; CDE00000
-        sta temp
-        lda cursor_x         ; 00abcdef
-        lsr a                ; 000abcde
-        ora temp             ; CDEabcde
-        sta vram_offset + 0
+        pla                  ; 000ABCDE
+        and #%00000111       ; 00000CDE
+        lsr a                ; 000000CD, carry=E
+        ror a                ; E000000C, carry=D
+        ror a                ; DE000000, carry=C
+        ora cursor_x         ; DEabcdef, carry=C
+        ror a
+        sta vram_offset + 0  ; CDEabcde
 
         jsr get_vram_copy_addr
 
@@ -574,8 +568,8 @@ solids  db %00000000, %01010101, %10101010, %11111111
         asl a
         tax
         ;
-        ; shifted AND mask for clearing bit pair -> temp
-        ; shifted paint_color for setting bit pair -> A
+        ; shifted AND mask    for clearing bit pair -> temp
+        ; shifted paint_color for setting  bit pair -> A
         lda #%11111100
         sta temp
         lda paint_color
@@ -587,8 +581,8 @@ solids  db %00000000, %01010101, %10101010, %11111111
         dex
         bne -
         ;
-        ; pull byte to modify, clear bit pair, insert new bit pair
-+       tay
++       ; pull byte to modify, clear bit pair, insert new bit pair
+        tay
         pla
         and temp
         sty temp
@@ -643,11 +637,10 @@ attribute_edit_mode
         ; if select pressed, enter palette editor
         lda joypad_status
         and #pad_select
-        beq +
-        bne attr_exit  ; unconditional; ends with rts
+        bne attr_exit      ; ends with rts
 
         ; otherwise if A pressed, tell NMI to update attribute byte
-+       lda joypad_status
+        lda joypad_status
         and #pad_a
         beq +
         jsr prepare_attr_change
@@ -691,15 +684,9 @@ attr_exit
         sta palette_subpal
 
         ; hide attribute editor sprites (#1-#4)
-        lda #$ff
         ldx #(1*4)
--       sta sprite_data, x
-        inx
-        inx
-        inx
-        inx
-        cpx #(5*4)
-        bne -
+        ldy #4
+        jsr hide_sprites  ; X = first byte index, Y = count
 
         ; show palette editor sprites (#5-#23)
 -       lda initial_sprite_data, x
@@ -903,18 +890,11 @@ paled_exit
         ; switch to paint mode
 
         ; hide palette editor sprites (#5-#23)
-        lda #$ff
         ldx #(5*4)
--       sta sprite_data, x
-        inx
-        inx
-        inx
-        inx
-        cpx #(24*4)
-        bne -
+        ldy #19
+        jsr hide_sprites  ; X = first byte index, Y = count
 
-        ; switch mode
-        lda #0
+        lda #0    ; switch mode
         sta mode
 
         rts
@@ -1081,13 +1061,29 @@ get_user_pal_offset
 +       tax
         rts
 
+; --- Subroutines used by many parts of the program -----------------------------------------------
+
+hide_sprites
+        ; X = first index on sprite page, Y = count
+
+        lda #$ff
+-       sta sprite_data, x
+        inx
+        inx
+        inx
+        inx
+        dey
+        bne -
+
+        rts
+
 ; --- Interrupt routines --------------------------------------------------------------------------
 
 nmi     pha  ; push A, X (note: not Y)
         txa
         pha
 
-        bit ppu_status  ; reset ppu_addr/ppu_scroll latch
+        bit ppu_status     ; reset ppu_addr/ppu_scroll latch
 
         lda #$00           ; do OAM DMA
         sta oam_addr
@@ -1126,7 +1122,7 @@ irq     rti
 ; --- Interrupt vectors ---------------------------------------------------------------------------
 
         pad $fffa, $ff
-        dw nmi, reset, irq
+        dw nmi, reset, irq  ; note: IRQ unused
         pad $10000, $ff
 
 ; --- CHR ROM -------------------------------------------------------------------------------------

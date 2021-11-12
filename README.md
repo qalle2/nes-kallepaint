@@ -44,6 +44,8 @@ Note: the cursor is invisible if it is on a pixel of the same color.
 Hint: to move long distances faster, switch to the large brush.
 
 ### Attribute edit mode
+![attribute edit mode](snap2.png)
+
 This mode looks like the paint mode except that the cursor is a large blinking square (4&times;4 pixels).
 
 Buttons:
@@ -54,7 +56,7 @@ Buttons:
 Note: changing the subpalette has no visible effect if the selected square only contains the first color of a subpalette. (That color is shared between all subpalettes.)
 
 ### Palette edit mode
-![palette edit mode](snap2.png)
+![palette edit mode](snap3.png)
 
 Indicators:
 * `P`: number of subpalette being edited (`0`&hellip;`3`)
@@ -75,7 +77,7 @@ Note: the first (topmost) color is shared between all subpalettes.
 * mapper: NROM (iNES mapper number 0)
 * PRG ROM: 16 KiB
 * CHR ROM: 8 KiB
-* name table mirroring: horizontal
+* name table mirroring: vertical
 * save RAM: none
 * compatibility: NTSC and PAL
 
