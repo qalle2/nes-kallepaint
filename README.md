@@ -50,7 +50,7 @@ This mode looks like the paint mode except that the cursor is a large blinking s
 
 Buttons:
 * up/down/left/right: move cursor
-* A: change subpalette at cursor (0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 0)
+* B/A: decrement/increment subpalette at cursor (0/1/2/3)
 * select: switch to palette edit mode
 
 Note: changing the subpalette has no visible effect if the selected square only contains the first color of a subpalette. (That color is shared between all subpalettes.)
@@ -58,14 +58,16 @@ Note: changing the subpalette has no visible effect if the selected square only 
 ### Palette edit mode
 ![palette edit mode](snap3.png)
 
+The palette editor is a small black window at the bottom right corner of the screen.
+
 Indicators:
-* `P`: number of subpalette being edited (`0`&hellip;`3`)
-* `C`: NES color number of selected color in hexadecimal (`00`&hellip;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
+* `P`: number of subpalette being edited (`0`&ndash;`3`)
+* `C`: NES color number of selected color in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
 * colored squares: colors in selected subpalette
 * blinking cursor: highlights the color being edited
 
 Buttons:
-* start: change subpalette (0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 0)
+* start: increment subpalette (0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 0)
 * up/down: move cursor
 * left/right: decrement/increment ones of color number
 * B/A: decrement/increment 16s of color number
