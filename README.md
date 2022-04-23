@@ -3,11 +3,11 @@ A paint program for the Nintendo Entertainment System (NES). Written in 6502 ass
 
 ## How to assemble
 * Get the background CHR data:
-  * Either extract `chr-background.bin.gz`&hellip;
-  * &hellip;or run `python3 chr-background-generate.py chr-background.bin`
+  * Either extract `chr-bg.bin.gz`&hellip;
+  * &hellip;or run `python3 chr-bg-gen.py chr-bg.bin`
 * Get the sprite CHR data:
-  * Either extract `chr-sprites.bin.gz`&hellip;
-  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py chr-sprites.png chr-sprites.bin`
+  * Either extract `chr-spr.bin.gz`&hellip;
+  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py chr-spr.png chr-spr.bin`
 * Assemble: run `asm6 paint.asm paint.nes`
 
 Note: The Linux script `assemble.sh` is for my personal use only. Do not run it without reading it.

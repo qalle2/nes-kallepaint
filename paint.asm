@@ -852,7 +852,7 @@ irq         rti
 ; --- CHR ROM -------------------------------------------------------------------------------------
 
             base $0000
-            incbin "chr-background.bin"  ; 256 tiles (4 KiB)
+            incbin "chr-bg.bin"   ; background (256 tiles, 4 KiB)
             pad $1000, $ff
-            incbin "chr-sprites.bin"     ; 256 tiles (4 KiB)
+            incbin "chr-spr.bin"  ; sprites (256 tiles, 4 KiB)
             pad $2000, $ff
