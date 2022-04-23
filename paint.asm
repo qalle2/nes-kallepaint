@@ -105,12 +105,6 @@ vscroll         equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top
 
 ; --- Initialization and main loop ----------------------------------------------------------------
 
-macro waitvblank
-                bit ppustatus  ; wait until next VBlank starts
--               bit ppustatus
-                bpl -
-endm
-
 reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/Init_code
                 sei             ; ignore IRQs
                 cld             ; disable decimal mode
@@ -124,7 +118,9 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 stx dmcfreq     ; disable DMC IRQs
                 stx sndchn      ; disable sound channels
 
-                waitvblank
+                bit ppustatus   ; wait until next VBlank starts
+-               bit ppustatus
+                bpl -
 
                 lda #$00             ; clear zero page and vramcopy
                 tax
@@ -158,7 +154,9 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 sta cursory
                 inc paintcolor
 
-                waitvblank
+                bit ppustatus      ; wait until next VBlank starts
+-               bit ppustatus
+                bpl -
 
                 lda #$3f           ; init PPU palette
                 sta ppuaddr
@@ -190,7 +188,9 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 lda #vscroll
                 sta ppuscroll
 
-                waitvblank
+                bit ppustatus   ; wait until next VBlank starts
+-               bit ppustatus
+                bpl -
 
                 lda #%10001000  ; NMI, 8*8-px sprites, pattern table 0 for BG and 1 for sprites,
                 sta ppuctrl     ; 1-byte VRAM address auto-increment, name table 0
@@ -204,17 +204,15 @@ mainloop        bit runmain      ; the main loop
                 lda padstatus    ; store previous joypad status
                 sta prevpadstat
 
-                ldx #$01        ; read first joypad
-                stx padstatus   ; initialize; set LSB of variable to detect end of loop
-                stx joypad1
-                dex
-                stx joypad1
--               clc             ; read 8 buttons; each one = OR of two LSBs
-                lda joypad1
+                lda #$01        ; read first joypad or Famicom expansion port controller
+                sta joypad1     ; see https://www.nesdev.org/wiki/Controller_reading_code
+                sta padstatus   ; init joypads; set LSB of variable to detect end of loop
+                lsr a
+                sta joypad1
+-               lda joypad1     ; read 8 buttons
                 and #%00000011
-                beq +
-                sec
-+               rol padstatus
+                cmp #$01
+                rol padstatus
                 bcc -
 
                 lda #$3f             ; tell NMI routine to update blinking cursor in VRAM
@@ -528,12 +526,12 @@ attreditor      lda prevpadstat    ; if any button pressed on previous frame, ig
                 bit padstatus        ; if A pressed, increment subpalette, else decrement
                 bpl +
                 asl a                ; increment subpalette (ASL is only used to update zero flag)
-                beq ++
-                inx                  ; to flip MSB too
+                beq ++               ; if LSB of bit pair is CLEAR, only flip it,
+                inx                  ; else INX to flip MSB too
                 bpl ++               ; unconditional
 +               asl a                ; decrement subpalette (ASL is only used to update zero flag)
-                bne ++
-                inx                  ; to flip MSB too
+                bne ++               ; if LSB of bit pair is SET, only flip it,
+                inx                  ; else INX to flip MSB too
 ++              pla                  ; pull original attribute byte
                 eor bpchgmasks,x     ; flip LSB only or MSB too
                 sta (vramcpyaddr),y  ; store to vramcopy (Y is still 0)
@@ -591,8 +589,8 @@ attreditor2     lda cursorx        ; update cursor sprite X
                 sta sprdata+4*4+0
                 rts                ; return to main loop
 
-bpchgmasks      db %00000001, %00000011  ; bit pair change masks (LSB or both LSB and MSB of each)
-                db %00000100, %00001100
+bpchgmasks      db %00000001, %00000011  ; AND/XOR masks for changing bit pairs
+                db %00000100, %00001100  ; (LSB or both LSB and MSB of each)
                 db %00010000, %00110000
                 db %01000000, %11000000
 
