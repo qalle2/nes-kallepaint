@@ -8,45 +8,47 @@
 ; - within a block of instructions, comments start at 2 columns after longest instruction,
 ;   but not earlier than at 41st column (equ is an exception)
 
+; TODO: in VRAM buffer, only use length var instead of var & terminator
+
 ; --- Constants -----------------------------------------------------------------------------------
 
 ; Note: "VRAM buffer" = what to update in VRAM on next VBlank.
 
 ; RAM
-vrambufhi       equ $00    ; VRAM buffer - high bytes of addresses (16 bytes; 0 = terminator)
-vrambuflo       equ $10    ; VRAM buffer - low bytes of addresses (16 bytes)
-vrambufval      equ $20    ; VRAM buffer - values (16 bytes)
-userpal         equ $30    ; user palette (16 bytes; each $00-$3f; offsets 4/8/12 are unused)
-vramoffs        equ $40    ; offset to name/attr table 0 and vramcopy (2 bytes, low first; 0-$3ff)
-vramcpyaddr     equ $42    ; address in vramcopy (2 bytes, low first; vramcopy...vramcopy+$3ff)
+vram_buf_adr_hi equ $00    ; VRAM buffer - high bytes of addresses (16 bytes; 0 = terminator)
+vram_buf_adr_lo equ $10    ; VRAM buffer - low bytes of addresses (16 bytes)
+vram_buf_val    equ $20    ; VRAM buffer - values (16 bytes)
+user_pal        equ $30    ; user palette (16 bytes; each $00-$3f; offsets 4/8/12 are unused)
+vram_offset     equ $40    ; offset to name/attr table 0 and vram_copy (2 bytes, low first; 0-$3ff)
+vram_copy_addr  equ $42    ; address in vram_copy (2 bytes, low first; vram_copy...vram_copy+$3ff)
 mode            equ $44    ; program mode: 0 = paint, 1 = attribute editor, 2 = palette editor
-runmain         equ $45    ; run main loop? (flag; only MSB is important)
-padstatus       equ $46    ; first joypad status (bits: A, B, select, start, up, down, left, right)
-prevpadstat     equ $47    ; first joypad status on previous frame
-vrambufpos      equ $48    ; position of last byte written to VRAM buffer
+run_main_loop   equ $45    ; run main loop? (flag; only MSB is important)
+pad_status      equ $46    ; first joypad status (bits: A, B, select, start, up, down, left, right)
+prev_pad_status equ $47    ; first joypad status on previous frame
+vram_buf_len    equ $48    ; VRAM buffer - number of bytes
 temp            equ $49    ; temporary
-delayleft       equ $4a    ; cursor move delay left (paint mode)
-brushsize       equ $4b    ; cursor type (paint mode; 0=small, 1=big)
-paintcolor      equ $4c    ; paint color (paint mode; 0-3)
-cursorx         equ $4d    ; cursor X position (paint/attribute edit mode; 0-63)
-cursory         equ $4e    ; cursor Y position (paint/attribute edit mode; 0-55)
-blinktimer      equ $4f    ; cursor blink timer (attribute/palette editor)
-paledcurpos     equ $50    ; cursor position (palette editor; 0-3)
-paledsubpal     equ $51    ; selected subpalette (palette editor; 0-3)
-sprdata         equ $0200  ; $100 bytes (see initsprdata for layout)
-vramcopy        equ $0300  ; $400 bytes (copy of name/attribute table 0; must be at $xx00)
+delay_left      equ $4a    ; cursor move delay left (paint mode)
+brush_size      equ $4b    ; cursor type (paint mode; 0=small, 1=big)
+paint_color     equ $4c    ; paint color (paint mode; 0-3)
+cursor_x        equ $4d    ; cursor X position (paint/attribute edit mode; 0-63)
+cursor_y        equ $4e    ; cursor Y position (paint/attribute edit mode; 0-55)
+blink_timer     equ $4f    ; cursor blink timer (attribute/palette editor)
+pal_ed_cur_pos  equ $50    ; cursor position (palette editor; 0-3)
+pal_ed_subpal   equ $51    ; selected subpalette (palette editor; 0-3)
+vram_copy       equ $0200  ; copy of name/attribute table 0 ($400 bytes; must be at $xx00)
+spr_data        equ $0600  ; sprite data ($100 bytes; see initial_spr_dat for layout)
 
 ; memory-mapped registers; see https://wiki.nesdev.org/w/index.php/PPU_registers
-ppuctrl         equ $2000
-ppumask         equ $2001
-ppustatus       equ $2002
-oamaddr         equ $2003
-ppuscroll       equ $2005
-ppuaddr         equ $2006
-ppudata         equ $2007
-dmcfreq         equ $4010
-oamdma          equ $4014
-sndchn          equ $4015
+ppu_ctrl        equ $2000
+ppu_mask        equ $2001
+ppu_status      equ $2002
+oam_addr        equ $2003
+ppu_scroll      equ $2005
+ppu_addr        equ $2006
+ppu_data        equ $2007
+dmc_freq        equ $4010
+oam_dma         equ $4014
+snd_chn         equ $4015
 joypad1         equ $4016
 joypad2         equ $4017
 
@@ -61,39 +63,39 @@ pad_l           equ 1<<1  ; left
 pad_r           equ 1<<0  ; right
 
 ; default user palette
-defcolorbg      equ $0f  ; background (all subpalettes)
-defcolor0a      equ $15  ; reds
-defcolor0b      equ $25
-defcolor0c      equ $35
-defcolor1a      equ $18  ; yellows
-defcolor1b      equ $28
-defcolor1c      equ $38
-defcolor2a      equ $1b  ; greens
-defcolor2b      equ $2b
-defcolor2c      equ $3b
-defcolor3a      equ $12  ; blues
-defcolor3b      equ $22
-defcolor3c      equ $32
+col_def_bg      equ $0f  ; background (all subpalettes)
+col_def_0a      equ $15  ; reds
+col_def_0b      equ $25
+col_def_0c      equ $35
+col_def_1a      equ $18  ; yellows
+col_def_1b      equ $28
+col_def_1c      equ $38
+col_def_2a      equ $1b  ; greens
+col_def_2b      equ $2b
+col_def_2c      equ $3b
+col_def_3a      equ $12  ; blues
+col_def_3b      equ $22
+col_def_3c      equ $32
 
 ; user interface colors
-paledbgcol      equ $0f  ; palette editor background (black)
-paledtxtcol     equ $30  ; palette editor text (white)
-blinkcol1       equ $0f  ; blinking cursor 1 (black)
-blinkcol2       equ $30  ; blinking cursor 2 (white)
+col_paled_bg    equ $0f  ; palette editor background (black)
+col_paled_text  equ $30  ; palette editor text (white)
+col_blink1      equ $0f  ; blinking cursor 1 (black)
+col_blink2      equ $30  ; blinking cursor 2 (white)
 
 ; sprite tile indexes (note: hexadecimal digits "0"-"F" must start at $00)
-smalcurtile     equ $10  ; small paint cursor
-bigcurtile      equ $11  ; large paint cursor
-attrcurtile     equ $12  ; corner of attribute cursor
-covertile       equ $13  ; cover (palette editor)
-paltile1        equ $14  ; left  half of "Pal" (palette editor)
-paltile2        equ $15  ; right half of "Pal" (palette editor)
-colindtile      equ $16  ; color indicator (palette editor)
+st_cur_sma      equ $10  ; small paint cursor
+st_cur_big      equ $11  ; large paint cursor
+st_cur_atr      equ $12  ; corner of attribute cursor
+st_cover        equ $13  ; cover (palette editor)
+st_pal1         equ $14  ; left  half of "Pal" (palette editor)
+st_pal2         equ $15  ; right half of "Pal" (palette editor)
+st_col_ind      equ $16  ; color indicator (palette editor)
 
 ; misc
-blinkrate       equ 4      ; attribute/palette editor cursor blink rate (0=fastest, 7=slowest)
-brushdelay      equ 10     ; paint cursor move repeat delay (frames)
-vscroll         equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top of visible area)
+blink_rate      equ 4      ; attribute/palette editor cursor blink rate (0=fastest, 7=slowest)
+brush_delay     equ 10     ; paint cursor move repeat delay (frames)
+vert_scroll     equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top of visible area)
 
 ; --- iNES header ---------------------------------------------------------------------------------
 
@@ -117,393 +119,393 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 ldx #$ff
                 txs                     ; initialize stack pointer
                 inx
-                stx ppuctrl             ; disable NMI
-                stx ppumask             ; disable rendering
-                stx dmcfreq             ; disable DMC IRQs
-                stx sndchn              ; disable sound channels
+                stx ppu_ctrl            ; disable NMI
+                stx ppu_mask            ; disable rendering
+                stx dmc_freq            ; disable DMC IRQs
+                stx snd_chn             ; disable sound channels
 
-                bit ppustatus           ; wait until next VBlank starts
--               bit ppustatus
+                bit ppu_status          ; wait until next VBlank starts
+-               bit ppu_status
                 bpl -
 
-                lda #$00                ; clear zero page and vramcopy
+                lda #$00                ; clear zero page and vram_copy
                 tax
 -               sta $00,x
-                sta vramcopy,x
-                sta vramcopy+$100,x
-                sta vramcopy+$200,x
-                sta vramcopy+$300,x
+                sta vram_copy,x
+                sta vram_copy+$100,x
+                sta vram_copy+$200,x
+                sta vram_copy+$300,x
                 inx
                 bne -
 
                 ldx #(16-1)             ; init user palette
--               lda initpalette,x
-                sta userpal,x
+-               lda initial_pal,x
+                sta user_pal,x
                 dex
                 bpl -
 
                 ldx #(24*4-1)           ; init sprite data
--               lda initsprdata,x
-                sta sprdata,x
+-               lda initial_spr_dat,x
+                sta spr_data,x
                 dex
                 bpl -
 
                 ldx #(1*4)              ; hide sprites except paint cursor (#0)
                 ldy #63
-                jsr hidesprites         ; X = first byte index, Y = count
+                jsr hide_sprites        ; X = first byte index, Y = count
 
                 lda #30                 ; init misc vars
-                sta cursorx
+                sta cursor_x
                 lda #26
-                sta cursory
-                inc paintcolor
+                sta cursor_y
+                inc paint_color
 
-                bit ppustatus           ; wait until next VBlank starts
--               bit ppustatus
+                bit ppu_status          ; wait until next VBlank starts
+-               bit ppu_status
                 bpl -
 
                 lda #$3f                ; init PPU palette
-                sta ppuaddr
+                sta ppu_addr
                 ldx #$00
-                stx ppuaddr
--               lda initpalette,x
-                sta ppudata
+                stx ppu_addr
+-               lda initial_pal,x
+                sta ppu_data
                 inx
                 cpx #32
                 bne -
 
                 lda #$20                ; clear name/attribute table 0 ($400 bytes)
-                sta ppuaddr
+                sta ppu_addr
                 lda #$00
-                sta ppuaddr
+                sta ppu_addr
                 ldy #4
 --              tax
--               sta ppudata
+-               sta ppu_data
                 inx
                 bne -
                 dey
                 bne --
 
-                bit ppustatus           ; reset ppuaddr/ppuscroll latch
+                bit ppu_status          ; reset ppu_addr/ppu_scroll latch
                 lda #$00                ; reset PPU address and set scroll
-                sta ppuaddr
-                sta ppuaddr
-                sta ppuscroll
-                lda #vscroll
-                sta ppuscroll
+                sta ppu_addr
+                sta ppu_addr
+                sta ppu_scroll
+                lda #vert_scroll
+                sta ppu_scroll
 
-                bit ppustatus           ; wait until next VBlank starts
--               bit ppustatus
+                bit ppu_status          ; wait until next VBlank starts
+-               bit ppu_status
                 bpl -
 
                 lda #%10001000          ; NMI: enabled, sprites: 8*8 px, BG PT: 0, sprite PT: 1,
-                sta ppuctrl             ; VRAM address auto-increment: 1 byte, name table: 0
+                sta ppu_ctrl            ; VRAM address auto-increment: 1 byte, name table: 0
 
                 lda #%00011110          ; BG & sprites: show on entire screen,
-                sta ppumask             ; R/G/B de-emphasis: off, grayscale mode: off
+                sta ppu_mask            ; R/G/B de-emphasis: off, grayscale mode: off
 
-mainloop        bit runmain             ; the main loop
-                bpl mainloop            ; wait until NMI routine has run
-                lsr runmain             ; prevent main loop from running until after next NMI
-                lda padstatus           ; store previous joypad status
-                sta prevpadstat
+main_loop       bit run_main_loop       ; the main loop
+                bpl main_loop           ; wait until NMI routine has run
+                lsr run_main_loop       ; prevent main loop from running until after next NMI
+                lda pad_status          ; store previous joypad status
+                sta prev_pad_status
 
                 lda #$01                ; read first joypad or Famicom expansion port controller
                 sta joypad1             ; see https://www.nesdev.org/wiki/Controller_reading_code
-                sta padstatus           ; init joypads; set LSB of variable to detect end of loop
+                sta pad_status          ; init joypads; set LSB of variable to detect end of loop
                 lsr a
                 sta joypad1
 -               lda joypad1             ; read 8 buttons
                 and #%00000011
                 cmp #$01
-                rol padstatus
+                rol pad_status
                 bcc -
 
                 lda #$3f                ; tell NMI routine to update blinking cursor in VRAM
-                sta vrambufhi+0
+                sta vram_buf_adr_hi+0
                 lda #(4*4+3)
-                sta vrambuflo+0
-                ldx #blinkcol1
-                lda blinktimer
-                and #(1<<blinkrate)
+                sta vram_buf_adr_lo+0
+                ldx #col_blink1
+                lda blink_timer
+                and #(1<<blink_rate)
                 beq +
-                ldx #blinkcol2
-+               stx vrambufval+0
+                ldx #col_blink2
++               stx vram_buf_val+0
                 lda #0                  ; store pos of last byte written
-                sta vrambufpos
+                sta vram_buf_len
 
-                inc blinktimer          ; advance timer
-                jsr jumpengine          ; run code for the program mode we're in
+                inc blink_timer         ; advance timer
+                jsr jump_engine         ; run code for the program mode we're in
 
-                ldx vrambufpos          ; append terminator to VRAM buffer
+                ldx vram_buf_len        ; append terminator to VRAM buffer
                 lda #$00
-                sta vrambufhi+1,x
+                sta vram_buf_adr_hi+1,x
 
-                beq mainloop            ; unconditional
+                beq main_loop           ; unconditional
 
-initpalette     ; initial palette
+initial_pal     ; initial palette
                 ; background (also the initial user palette)
-                db defcolorbg, defcolor0a, defcolor0b, defcolor0c
-                db defcolorbg, defcolor1a, defcolor1b, defcolor1c
-                db defcolorbg, defcolor2a, defcolor2b, defcolor2c
-                db defcolorbg, defcolor3a, defcolor3b, defcolor3c
+                db col_def_bg, col_def_0a, col_def_0b, col_def_0c
+                db col_def_bg, col_def_1a, col_def_1b, col_def_1c
+                db col_def_bg, col_def_2a, col_def_2b, col_def_2c
+                db col_def_bg, col_def_3a, col_def_3b, col_def_3c
                 ; sprites
                 ; 2nd color in all subpalettes: palette editor background
                 ; 3rd color in all subpalettes: selected colors in palette editor
                 ; 4th color in 1st subpalette : all cursors
                 ; 4th color in 2nd subpalette : palette editor text
-                db defcolorbg, paledbgcol, defcolorbg,  defcolor0a
-                db defcolorbg, paledbgcol, defcolor0a, paledtxtcol
-                db defcolorbg, paledbgcol, defcolor0b,         $00
-                db defcolorbg, paledbgcol, defcolor0c,         $00
+                db col_def_bg, col_paled_bg, col_def_bg, col_def_0a
+                db col_def_bg, col_paled_bg, col_def_0a, col_paled_text
+                db col_def_bg, col_paled_bg, col_def_0b, $00
+                db col_def_bg, col_paled_bg, col_def_0c, $00
 
-initsprdata     ; initial sprite data (Y, tile, attributes, X for each sprite)
+initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 ; paint mode
-                db    $ff, smalcurtile, %00000000,    0  ; #0:  cursor
+                db    $ff, st_cur_sma, %00000000,    0  ; #0:  cursor
                 ; attribute editor
-                db    $ff, attrcurtile, %00000000,    0  ; #1:  cursor top left
-                db    $ff, attrcurtile, %01000000,    0  ; #2:  cursor top right
-                db    $ff, attrcurtile, %10000000,    0  ; #3:  cursor bottom left
-                db    $ff, attrcurtile, %11000000,    0  ; #4:  cursor bottom right
+                db    $ff, st_cur_atr, %00000000,    0  ; #1:  cursor top left
+                db    $ff, st_cur_atr, %01000000,    0  ; #2:  cursor top right
+                db    $ff, st_cur_atr, %10000000,    0  ; #3:  cursor bottom left
+                db    $ff, st_cur_atr, %11000000,    0  ; #4:  cursor bottom right
                 ; palette editor
-                db    $ff,  bigcurtile, %00000000, 29*8  ; #5:  cursor
-                db 22*8-1,    paltile1, %00000001, 28*8  ; #6:  left  half of "Pal"
-                db 22*8-1,    paltile2, %00000001, 29*8  ; #7:  right half of "Pal"
-                db 22*8-1,         $00, %00000001, 30*8  ; #8:  subpalette number
-                db 23*8-1,         $0c, %00000001, 28*8  ; #9:  "C"
-                db 23*8-1,         $00, %00000001, 29*8  ; #10: color number - 16s
-                db 23*8-1,         $00, %00000001, 30*8  ; #11: color number - ones
-                db 24*8-1,  colindtile, %00000000, 29*8  ; #12: color 0
-                db 25*8-1,  colindtile, %00000001, 29*8  ; #13: color 1
-                db 26*8-1,  colindtile, %00000010, 29*8  ; #14: color 2
-                db 27*8-1,  colindtile, %00000011, 29*8  ; #15: color 3
-                db 24*8-1,   covertile, %00000001, 28*8  ; #16: cover (to left  of color 0)
-                db 24*8-1,   covertile, %00000001, 30*8  ; #17: cover (to right of color 0)
-                db 25*8-1,   covertile, %00000001, 28*8  ; #18: cover (to left  of color 1)
-                db 25*8-1,   covertile, %00000001, 30*8  ; #19: cover (to right of color 1)
-                db 26*8-1,   covertile, %00000001, 28*8  ; #20: cover (to left  of color 2)
-                db 26*8-1,   covertile, %00000001, 30*8  ; #21: cover (to right of color 2)
-                db 27*8-1,   covertile, %00000001, 28*8  ; #22: cover (to left  of color 3)
-                db 27*8-1,   covertile, %00000001, 30*8  ; #23: cover (to right of color 3)
+                db    $ff, st_cur_big, %00000000, 29*8  ; #5:  cursor
+                db 22*8-1, st_pal1,    %00000001, 28*8  ; #6:  left  half of "Pal"
+                db 22*8-1, st_pal2,    %00000001, 29*8  ; #7:  right half of "Pal"
+                db 22*8-1, $00,        %00000001, 30*8  ; #8:  subpalette number
+                db 23*8-1, $0c,        %00000001, 28*8  ; #9:  "C"
+                db 23*8-1, $00,        %00000001, 29*8  ; #10: color number - 16s
+                db 23*8-1, $00,        %00000001, 30*8  ; #11: color number - ones
+                db 24*8-1, st_col_ind, %00000000, 29*8  ; #12: color 0
+                db 25*8-1, st_col_ind, %00000001, 29*8  ; #13: color 1
+                db 26*8-1, st_col_ind, %00000010, 29*8  ; #14: color 2
+                db 27*8-1, st_col_ind, %00000011, 29*8  ; #15: color 3
+                db 24*8-1, st_cover,   %00000001, 28*8  ; #16: cover (to left  of color 0)
+                db 24*8-1, st_cover,   %00000001, 30*8  ; #17: cover (to right of color 0)
+                db 25*8-1, st_cover,   %00000001, 28*8  ; #18: cover (to left  of color 1)
+                db 25*8-1, st_cover,   %00000001, 30*8  ; #19: cover (to right of color 1)
+                db 26*8-1, st_cover,   %00000001, 28*8  ; #20: cover (to left  of color 2)
+                db 26*8-1, st_cover,   %00000001, 30*8  ; #21: cover (to right of color 2)
+                db 27*8-1, st_cover,   %00000001, 28*8  ; #22: cover (to left  of color 3)
+                db 27*8-1, st_cover,   %00000001, 30*8  ; #23: cover (to right of color 3)
 
-jumpengine      ldx mode                ; jump engine (run one sub depending on program mode)
-                lda jumptablehi,x       ; note: don't inline this sub
+jump_engine     ldx mode                ; jump engine (run one sub depending on program mode)
+                lda jump_table_hi,x     ; note: don't inline this sub
                 pha                     ; push target address minus one, high byte first
-                lda jumptablelo,x
+                lda jump_table_lo,x
                 pha
                 rts                     ; pull address, low byte first; jump to address plus one
 
-jumptablehi     dh paintmode-1, attreditor-1, paleditor-1  ; jump table - high bytes
-jumptablelo     dl paintmode-1, attreditor-1, paleditor-1  ; jump table - low bytes
+jump_table_hi   dh paint_mode-1, attr_editor-1, pal_editor-1  ; jump table - high bytes
+jump_table_lo   dl paint_mode-1, attr_editor-1, pal_editor-1  ; jump table - low bytes
 
 ; --- Paint mode (code label prefix "pm") ---------------------------------------------------------
 
-paintmode       lda prevpadstat         ; select/B/start logic
+paint_mode      lda prev_pad_status     ; select/B/start logic
                 and #(pad_sl|pad_b|pad_st)
-                bne pmarrows            ; if any pressed on previous frame, ignore them all
+                bne pm_arrows           ; if any pressed on previous frame, ignore them all
 
-                lda padstatus           ; if select pressed, switch to attribute editor
+                lda pad_status          ; if select pressed, switch to attribute editor
                 and #pad_sl
                 beq +
                 lda #$ff                ; hide paint cursor sprite
-                sta sprdata+0+0
+                sta spr_data+0+0
                 lda #%00111100          ; make cursor coordinates a multiple of four
-                and cursorx
-                sta cursorx
+                and cursor_x
+                sta cursor_x
                 lda #%00111100
-                and cursory
-                sta cursory
+                and cursor_y
+                sta cursor_y
                 inc mode                ; change program mode
                 rts                     ; return to main loop
 
-+               lda padstatus           ; if B pressed, increment paint color (0-3)
++               lda pad_status          ; if B pressed, increment paint color (0-3)
                 and #pad_b
                 beq +
-                ldx paintcolor
+                ldx paint_color
                 inx
                 txa
                 and #%00000011
-                sta paintcolor
+                sta paint_color
 
-+               lda padstatus           ; if start pressed, toggle brush size
++               lda pad_status          ; if start pressed, toggle brush size
                 and #pad_st
-                beq pmarrows
-                lda brushsize
+                beq pm_arrows
+                lda brush_size
                 eor #%00000001
-                sta brushsize
-                beq pmarrows
-                lsr cursorx             ; if large brush, make coordinates even
-                asl cursorx             ; note: not allowing the cursor to span multiple tiles
-                lsr cursory             ; makes the paint logic a lot simpler
-                asl cursory
+                sta brush_size
+                beq pm_arrows
+                lsr cursor_x            ; if large brush, make coordinates even
+                asl cursor_x            ; note: not allowing the cursor to span multiple tiles
+                lsr cursor_y            ; makes the paint logic a lot simpler
+                asl cursor_y
 
-pmarrows        lda padstatus           ; arrow logic
+pm_arrows       lda pad_status          ; arrow logic
                 and #(pad_u|pad_d|pad_l|pad_r)
                 bne +
-                sta delayleft           ; if none pressed, clear cursor move delay
-                beq paintmode2          ; unconditional; ends with rts
-+               lda delayleft           ; else if delay > 0, decrement it and exit
+                sta delay_left          ; if none pressed, clear cursor move delay
+                beq paint_mode2         ; unconditional; ends with rts
++               lda delay_left          ; else if delay > 0, decrement it and exit
                 beq +
-                dec delayleft
-                bpl paintmode2          ; unconditional; ends with rts
+                dec delay_left
+                bpl paint_mode2         ; unconditional; ends with rts
 
-+               lda padstatus           ; check horizontal arrows
++               lda pad_status          ; check horizontal arrows
                 lsr a
                 bcs +
                 lsr a
                 bcs ++
-                bcc pmcheckvert         ; unconditional
-+               lda cursorx             ; right
+                bcc pm_check_vert       ; unconditional
++               lda cursor_x            ; right
                 sec
-                adc brushsize
+                adc brush_size
                 bpl +++                 ; unconditional
-++              lda cursorx             ; left
+++              lda cursor_x            ; left
                 clc
-                sbc brushsize
+                sbc brush_size
 +++             and #%00111111          ; store horizontal position
-                sta cursorx
+                sta cursor_x
 
-pmcheckvert     lda padstatus           ; check vertical arrows
+pm_check_vert   lda pad_status          ; check vertical arrows
                 lsr a
                 lsr a
                 lsr a
                 bcs +
                 lsr a
                 bcs ++
-                bcc pmarrowend          ; unconditional
-+               lda cursory             ; down
+                bcc pm_arrow_end        ; unconditional
++               lda cursor_y            ; down
                 sec
-                adc brushsize
+                adc brush_size
                 cmp #56
                 bne +++
                 lda #0
                 beq +++                 ; unconditional
-++              lda cursory             ; up
+++              lda cursor_y            ; up
                 clc
-                sbc brushsize
+                sbc brush_size
                 bpl +++
                 lda #56
                 clc
-                sbc brushsize
-+++             sta cursory             ; store vertical position
+                sbc brush_size
++++             sta cursor_y            ; store vertical position
 
-pmarrowend      lda #brushdelay         ; reinit cursor move delay
-                sta delayleft
+pm_arrow_end    lda #brush_delay        ; reinit cursor move delay
+                sta delay_left
 
-paintmode2      ; paint mode, part 2
+paint_mode2     ; paint mode, part 2
 
-                lda cursorx             ; update cursor sprite
+                lda cursor_x            ; update cursor sprite
                 asl a                   ; X pos
                 asl a
-                sta sprdata+0+3
-                lda cursory             ; Y pos
+                sta spr_data+0+3
+                lda cursor_y            ; Y pos
                 asl a
                 asl a
                 adc #(8-1)              ; carry is always clear
-                sta sprdata+0+0
-                ldx brushsize           ; tile
-                lda cursortiles,x
-                sta sprdata+0+1
+                sta spr_data+0+0
+                ldx brush_size          ; tile
+                lda cursor_tiles,x
+                sta spr_data+0+1
 
-                ldx paintcolor          ; tell NMI routine to update cursor color
+                ldx paint_color         ; tell NMI routine to update cursor color
                 beq ++                  ; color 0 is common to all subpalettes
-                jsr attrvramofs         ; get vramoffs and vramcpyaddr
-                jsr attrbitpos          ; 0/2/4/6 -> X
+                jsr attr_vram_offs      ; get vram_offset and vram_copy_addr
+                jsr attr_bit_pos        ; 0/2/4/6 -> X
                 ldy #0                  ; read attribute byte
-                lda (vramcpyaddr),y
+                lda (vram_copy_addr),y
                 cpx #0                  ; shift relevant bit pair to positions 1-0
                 beq +
 -               lsr a
                 dex
                 bne -
 +               and #%00000011          ; clear other bits
-                asl a                   ; index to userpal -> X
+                asl a                   ; index to user_pal -> X
                 asl a
-                ora paintcolor
+                ora paint_color
                 tax
-++              lda userpal,x           ; cursor color -> A
+++              lda user_pal,x          ; cursor color -> A
                 pha                     ; append to VRAM buffer
-                inc vrambufpos
-                ldx vrambufpos
+                inc vram_buf_len
+                ldx vram_buf_len
                 lda #$3f
-                sta vrambufhi,x
+                sta vram_buf_adr_hi,x
                 lda #(4*4+3)
-                sta vrambuflo,x
+                sta vram_buf_adr_lo,x
                 pla
-                sta vrambufval,x
+                sta vram_buf_val,x
 
-                lda padstatus           ; if A not pressed, we are done
+                lda pad_status          ; if A not pressed, we are done
                 and #pad_a
-                beq rtslabel
+                beq rts_label
 
-                lda cursory             ; edit one byte (tile) in vramcopy and
+                lda cursor_y            ; edit one byte (tile) in vram_copy and
                 lsr a                   ; tell NMI routine to update it to VRAM
-                pha                     ; compute offset to vramcopy and VRAM $2000
-                lsr a                   ; bits: cursory = 00ABCDEF, cursorx = 00abcdef,
-                lsr a                   ; -> vramoffs = 000000AB CDEabcde
+                pha                     ; compute offset to vram_copy and VRAM $2000
+                lsr a                   ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef,
+                lsr a                   ; -> vram_offset = 000000AB CDEabcde
                 lsr a
-                sta vramoffs+1
+                sta vram_offset+1
                 pla
                 and #%00000111
                 lsr a
                 ror a
                 ror a
-                ora cursorx
+                ora cursor_x
                 ror a
-                sta vramoffs+0
+                sta vram_offset+0
 
-                jsr getvramcpad         ; get vramcpyaddr
-                lda brushsize
+                jsr get_vramcopyadr     ; get vram_copy_addr
+                lda brush_size
                 beq +
 
-                ldx paintcolor          ; large brush -> replace entire byte/tile with solid color
-                lda solidtiles,x
-                jmp updatetile
+                ldx paint_color         ; large brush -> replace entire byte/tile with solid color
+                lda solid_tiles,x
+                jmp update_tile
 
 +               ldy #0                  ; small brush -> replace bit pair/pixel within orig byte
-                lda (vramcpyaddr),y     ; store original byte
+                lda (vram_copy_addr),y  ; store original byte
                 pha
-                lda cursorx             ; pixel position within tile (0-3) -> X
+                lda cursor_x            ; pixel position within tile (0-3) -> X
                 lsr a
-                lda cursory
+                lda cursor_y
                 rol a
                 and #%00000011
                 tax
-                lda pixelmasks,x        ; AND mask for clearing a bit pair -> temp
+                lda pixel_masks,x       ; AND mask for clearing a bit pair -> temp
                 eor #%11111111
                 sta temp
-                ldy paintcolor          ; OR mask for changing a cleared bit pair -> X
-                lda solidtiles,y
-                and pixelmasks,x
+                ldy paint_color         ; OR mask for changing a cleared bit pair -> X
+                lda solid_tiles,y
+                and pixel_masks,x
                 tax
                 pla                     ; restore original byte, clear bit pair and change it
                 and temp
                 stx temp
                 ora temp
 
-updatetile      ldy #0                  ; update byte in vramcopy
-                sta (vramcpyaddr),y
-                jsr tovrambuf           ; tell NMI routine to update A to VRAM
-rtslabel        rts                     ; return to main loop
+update_tile     ldy #0                  ; update byte in vram_copy
+                sta (vram_copy_addr),y
+                jsr to_vram_buffer      ; tell NMI routine to update A to VRAM
+rts_label       rts                     ; return to main loop
 
-cursortiles     db smalcurtile, bigcurtile                     ; brush size -> cursor tile
-solidtiles      db %00000000, %01010101, %10101010, %11111111  ; tiles of solid color 0-3
-pixelmasks      db %11000000, %00110000, %00001100, %00000011  ; bitmasks for pxls within tile ind
+cursor_tiles    db st_cur_sma, st_cur_big                      ; brush size -> cursor tile
+solid_tiles     db %00000000, %01010101, %10101010, %11111111  ; tiles of solid color 0-3
+pixel_masks     db %11000000, %00110000, %00001100, %00000011  ; bitmasks for pxls within tile ind
 
 ; --- Attribute editor (code label prefix "ae") ---------------------------------------------------
 
-attreditor      lda prevpadstat         ; if any button pressed on previous frame, ignore all
+attr_editor     lda prev_pad_status     ; if any button pressed on previous frame, ignore all
                 beq +
-                jmp attreditor2         ; TODO: code golf to get label within branch range
+                jmp attr_editor2        ; TODO: code golf to get label within branch range
 
-+               lda padstatus           ; if select pressed, switch to palette editor
++               lda pad_status          ; if select pressed, switch to palette editor
                 and #pad_sl
                 beq +
                 ldx #(1*4)              ; hide attribute editor sprites (#1-#4)
                 ldy #4
-                jsr hidesprites         ; X = first byte index, Y = count
--               lda initsprdata,x       ; show palette editor sprites (#5-#23)
-                sta sprdata,x
+                jsr hide_sprites        ; X = first byte index, Y = count
+-               lda initial_spr_dat,x   ; show palette editor sprites (#5-#23)
+                sta spr_data,x
                 inx
                 inx
                 inx
@@ -513,16 +515,16 @@ attreditor      lda prevpadstat         ; if any button pressed on previous fram
                 inc mode                ; change program mode
                 rts                     ; return to main loop
 
-+               lda padstatus           ; if A/B pressed, change attr block subpalette (bit pair)
++               lda pad_status          ; if A/B pressed, change attr block subpalette (bit pair)
                 and #(pad_a|pad_b)
-                beq aearrows
-                jsr attrvramofs         ; get vramoffs and vramcpyaddr
-                jsr attrbitpos          ; 0/2/4/6 -> X
+                beq ae_arrows
+                jsr attr_vram_offs      ; get vram_offset and vram_copy_addr
+                jsr attr_bit_pos        ; 0/2/4/6 -> X
                 ldy #0                  ; attribute byte to modify -> stack
-                lda (vramcpyaddr),y
+                lda (vram_copy_addr),y
                 pha
-                and bpchgmasks,x        ; attr byte with bits other than LSB of bit pair cleared
-                bit padstatus           ; if A pressed, increment subpalette, else decrement
+                and bitpair_masks,x     ; attr byte with bits other than LSB of bit pair cleared
+                bit pad_status          ; if A pressed, increment subpalette, else decrement
                 bpl +
                 asl a                   ; incr subpalette (ASL is only used to update zero flag)
                 beq ++                  ; if LSB of bit pair is CLEAR, only flip it,
@@ -532,74 +534,74 @@ attreditor      lda prevpadstat         ; if any button pressed on previous fram
                 bne ++                  ; if LSB of bit pair is SET, only flip it,
                 inx                     ; else INX to flip MSB too
 ++              pla                     ; pull original attribute byte
-                eor bpchgmasks,x        ; flip LSB only or MSB too
-                sta (vramcpyaddr),y     ; store to vramcopy (Y is still 0)
-                jsr tovrambuf           ; tell NMI routine to update A to VRAM
+                eor bitpair_masks,x     ; flip LSB only or MSB too
+                sta (vram_copy_addr),y  ; store to vram_copy (Y is still 0)
+                jsr to_vram_buffer      ; tell NMI routine to update A to VRAM
 
-aearrows        lda padstatus           ; check horizontal arrows
+ae_arrows       lda pad_status          ; check horizontal arrows
                 lsr a
                 bcs +
                 lsr a
                 bcs ++
-                bcc aecheckvert         ; unconditional
-+               lda cursorx             ; right
+                bcc ae_check_vert       ; unconditional
++               lda cursor_x            ; right
                 adc #(4-1)              ; carry is always set
                 bcc +++                 ; unconditional
-++              lda cursorx             ; left
+++              lda cursor_x            ; left
                 sbc #4                  ; carry is always set
 +++             and #%00111111          ; store horizontal position
-                sta cursorx
-aecheckvert     lda padstatus           ; check vertical arrows
+                sta cursor_x
+ae_check_vert   lda pad_status          ; check vertical arrows
                 lsr a
                 lsr a
                 lsr a
                 bcs +
                 lsr a
                 bcs ++
-                bcc attreditor2         ; unconditional
-+               lda cursory             ; down
+                bcc attr_editor2        ; unconditional
++               lda cursor_y            ; down
                 adc #(4-1)              ; carry is always set
                 cmp #56
                 bne +++
                 lda #0
                 beq +++                 ; unconditional
-++              lda cursory             ; up
+++              lda cursor_y            ; up
                 sbc #4                  ; carry is always set
                 bpl +++
                 lda #(56-4)
-+++             sta cursory             ; store vertical position
++++             sta cursor_y            ; store vertical position
 
-attreditor2     lda cursorx             ; update cursor sprite X
+attr_editor2    lda cursor_x            ; update cursor sprite X
                 asl a
                 asl a
-                sta sprdata+4+3
-                sta sprdata+3*4+3
+                sta spr_data+4+3
+                sta spr_data+3*4+3
                 adc #8                  ; carry is always clear
-                sta sprdata+2*4+3
-                sta sprdata+4*4+3
-                lda cursory             ; update cursor sprite Y
+                sta spr_data+2*4+3
+                sta spr_data+4*4+3
+                lda cursor_y            ; update cursor sprite Y
                 asl a
                 asl a
                 adc #(8-1)              ; carry is always clear
-                sta sprdata+4+0
-                sta sprdata+2*4+0
+                sta spr_data+4+0
+                sta spr_data+2*4+0
                 adc #8                  ; carry is always clear
-                sta sprdata+3*4+0
-                sta sprdata+4*4+0
+                sta spr_data+3*4+0
+                sta spr_data+4*4+0
                 rts                     ; return to main loop
 
-bpchgmasks      db %00000001, %00000011  ; AND/XOR masks for changing bit pairs
+bitpair_masks   db %00000001, %00000011  ; AND/XOR masks for changing bit pairs
                 db %00000100, %00001100  ; (LSB or both LSB and MSB of each)
                 db %00010000, %00110000
                 db %01000000, %11000000
 
 ; --- Subroutines used by both paint mode and attribute editor ------------------------------------
 
-attrbitpos      lda cursory             ; position within attribute byte -> X (0/2/4/6)
-                and #%00000100          ; bits: cursory = 00ABCDEF, cursorx = 00abcdef
+attr_bit_pos    lda cursor_y            ; position within attribute byte -> X (0/2/4/6)
+                and #%00000100          ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
                 lsr a                   ; -> X = 00000Dd0
                 tax
-                lda cursorx
+                lda cursor_x
                 and #%00000100
                 cmp #%00000100          ; bit -> carry
                 txa
@@ -608,192 +610,192 @@ attrbitpos      lda cursory             ; position within attribute byte -> X (0
                 tax
                 rts
 
-attrvramofs     lda #%00000011          ; get VRAM offset for attribute byte,
-                sta vramoffs+1          ; fall through to next sub
-                lda cursory             ; bits: cursory = 00ABCDEF, cursorx = 00abcdef
-                and #%00111000          ; -> vramoffs = $3c0 + 00ABCabc = 00000011 11ABCabc
+attr_vram_offs  lda #%00000011          ; get VRAM offset for attribute byte,
+                sta vram_offset+1       ; fall through to next sub
+                lda cursor_y            ; bits: cursor_y = 00ABCDEF, cursor_x = 00abcdef
+                and #%00111000          ; -> vram_offset = $3c0 + 00ABCabc = 00000011 11ABCabc
                 sta temp
-                lda cursorx
+                lda cursor_x
                 lsr a
                 lsr a
                 lsr a
                 ora temp
                 ora #%11000000
-                sta vramoffs+0          ; fall through to next sub
+                sta vram_offset+0       ; fall through to next sub
 
-getvramcpad     lda vramoffs+0          ; get address within vramcopy
-                sta vramcpyaddr+0       ; vramcopy + vramoffs -> vramcpyaddr
-                lda #>vramcopy          ; (vramcopy must be at $xx00)
+get_vramcopyadr lda vram_offset+0       ; get address within vram_copy
+                sta vram_copy_addr+0    ; vram_copy + vram_offset -> vram_copy_addr
+                lda #>vram_copy         ; (vram_copy must be at $xx00)
                 clc
-                adc vramoffs+1
-                sta vramcpyaddr+1
+                adc vram_offset+1
+                sta vram_copy_addr+1
                 rts
 
-tovrambuf       pha                     ; tell NMI routine to write A to VRAM $2000 + vramoffs
-                inc vrambufpos
-                ldx vrambufpos
+to_vram_buffer  pha                     ; tell NMI routine to write A to VRAM $2000 + vram_offset
+                inc vram_buf_len
+                ldx vram_buf_len
                 lda #$20
-                ora vramoffs+1
-                sta vrambufhi,x
-                lda vramoffs+0
-                sta vrambuflo,x
+                ora vram_offset+1
+                sta vram_buf_adr_hi,x
+                lda vram_offset+0
+                sta vram_buf_adr_lo,x
                 pla
-                sta vrambufval,x
+                sta vram_buf_val,x
                 rts
 
 ; --- Palette editor (code label prefix "pe") -----------------------------------------------------
 
-paleditor       lda prevpadstat         ; if any button pressed on previous frame, ignore all
-                bne paleditor2
+pal_editor      lda prev_pad_status     ; if any button pressed on previous frame, ignore all
+                bne pal_editor2
 
-                lda padstatus
+                lda pad_status
                 lsr a
-                bcs peinc1s             ; right
+                bcs pe_inc_ones         ; right
                 lsr a
-                bcs pedec1s             ; left
+                bcs pe_dec_ones         ; left
                 lsr a
-                bcs pedown              ; down
+                bcs pe_down             ; down
                 lsr a
-                bcs peup                ; up
+                bcs pe_up               ; up
                 lsr a
-                bcs peincsubpal         ; start
+                bcs pe_inc_subpal       ; start
                 lsr a
-                bcs peexit              ; select; ends with RTS
+                bcs pe_exit             ; select; ends with RTS
                 lsr a
-                bcs pedec16s            ; B
-                bne peinc16s            ; A
-                beq paleditor2          ; unconditional
+                bcs pe_dec_16s          ; B
+                bne pe_inc_16s          ; A
+                beq pal_editor2         ; unconditional
 
-peexit          ldx #(5*4)              ; exit palette editor (switch to paint mode)
+pe_exit         ldx #(5*4)              ; exit palette editor (switch to paint mode)
                 ldy #19                 ; hide palette editor sprites (#5-#23)
-                jsr hidesprites         ; X = first byte index, Y = count
+                jsr hide_sprites        ; X = first byte index, Y = count
                 lda #0
                 sta mode                ; change program mode
                 rts                     ; return to main loop
 
-peincsubpal     lda paledsubpal         ; increment subpalette (0 -> 1 -> 2 -> 3 -> 0)
+pe_inc_subpal   lda pal_ed_subpal       ; increment subpalette (0 -> 1 -> 2 -> 3 -> 0)
                 adc #0                  ; carry is always set
                 and #%00000011
-                sta paledsubpal
-                bpl paleditor2          ; unconditional
+                sta pal_ed_subpal
+                bpl pal_editor2         ; unconditional
 
-pedown          ldx paledcurpos         ; move down
+pe_down         ldx pal_ed_cur_pos      ; move down
                 inx
-                bpl pestorepos          ; unconditional
-peup            ldx paledcurpos         ; move up
+                bpl +                   ; unconditional
+pe_up           ldx pal_ed_cur_pos      ; move up
                 dex
-pestorepos      txa                     ; store cursor pos
++               txa                     ; store cursor position
                 and #%00000011
-                sta paledcurpos
+                sta pal_ed_cur_pos
                 tax
-                bpl paleditor2          ; unconditional
+                bpl pal_editor2         ; unconditional
 
-peinc1s         jsr userpaloffs         ; increment ones
-                ldy userpal,x
+pe_inc_ones     jsr user_pal_offset     ; increment ones
+                ldy user_pal,x
                 iny
-                bpl pestore1s           ; unconditional
-pedec1s         jsr userpaloffs         ; decrement ones
-                ldy userpal,x
+                bpl +                   ; unconditional
+pe_dec_ones     jsr user_pal_offset     ; decrement ones
+                ldy user_pal,x
                 dey
-pestore1s       tya                     ; store ones
++               tya                     ; store ones
                 and #%00001111
                 sta temp
-                lda userpal,x
+                lda user_pal,x
                 and #%00110000
                 ora temp
-                sta userpal,x
-                bpl paleditor2          ; unconditional
+                sta user_pal,x
+                bpl pal_editor2         ; unconditional
 
-peinc16s        jsr userpaloffs         ; increment sixteens
-                lda userpal,x
+pe_inc_16s      jsr user_pal_offset     ; increment sixteens
+                lda user_pal,x
                 clc
                 adc #$10
-                bpl pestore16s          ; unconditional
-pedec16s        jsr userpaloffs         ; decrement sixteens
-                lda userpal,x
+                bpl +                   ; unconditional
+pe_dec_16s      jsr user_pal_offset     ; decrement sixteens
+                lda user_pal,x
                 sec
                 sbc #$10
-pestore16s      and #%00111111          ; store sixteens
-                sta userpal,x
-                bpl paleditor2          ; unconditional
++               and #%00111111          ; store sixteens
+                sta user_pal,x
+                bpl pal_editor2         ; unconditional
 
-paleditor2      lda paledsubpal         ; palette editor, part 2
-                sta sprdata+8*4+1       ; update tile of selected subpalette
-                lda paledcurpos         ; update cursor Y position
+pal_editor2     lda pal_ed_subpal       ; palette editor, part 2
+                sta spr_data+8*4+1      ; update tile of selected subpalette
+                lda pal_ed_cur_pos      ; update cursor Y position
                 asl a
                 asl a
                 asl a
                 adc #(24*8-1)           ; carry is always clear
-                sta sprdata+5*4+0
-                jsr userpaloffs         ; update sixteens tile of color number
-                lda userpal,x
+                sta spr_data+5*4+0
+                jsr user_pal_offset     ; update sixteens tile of color number
+                lda user_pal,x
                 lsr a
                 lsr a
                 lsr a
                 lsr a
-                sta sprdata+10*4+1
-                lda userpal,x           ; update ones tile of color number
+                sta spr_data+10*4+1
+                lda user_pal,x          ; update ones tile of color number
                 and #%00001111
-                sta sprdata+11*4+1
+                sta spr_data+11*4+1
 
-                jsr userpaloffs         ; tell NMI routine to update 5 VRAM bytes
+                jsr user_pal_offset      ; tell NMI routine to update 5 VRAM bytes
                 pha
-                ldx vrambufpos
-                lda #$3f                ; selected color -> background palette
-                sta vrambufhi+1,x
+                ldx vram_buf_len
+                lda #$3f                 ; selected color -> background palette
+                sta vram_buf_adr_hi+1,x
                 pla
-                sta vrambuflo+1,x
+                sta vram_buf_adr_lo+1,x
                 tay
-                lda userpal,y
-                sta vrambufval+1,x
-                lda #$3f                ; 1st color of all subpalettes
-                sta vrambufhi+2,x
+                lda user_pal,y
+                sta vram_buf_val+1,x
+                lda #$3f                 ; 1st color of all subpalettes
+                sta vram_buf_adr_hi+2,x
                 lda #(4*4+2)
-                sta vrambuflo+2,x
-                lda userpal+0
-                sta vrambufval+2,x
-                lda paledsubpal         ; subpalette offset in user palette -> Y
+                sta vram_buf_adr_lo+2,x
+                lda user_pal+0
+                sta vram_buf_val+2,x
+                lda pal_ed_subpal        ; subpalette offset in user palette -> Y
                 asl a
                 asl a
                 tay
-                lda #$3f                ; 2nd color of selected subpalette
-                sta vrambufhi+3,x
+                lda #$3f                 ; 2nd color of selected subpalette
+                sta vram_buf_adr_hi+3,x
                 lda #(5*4+2)
-                sta vrambuflo+3,x
-                lda userpal+1,y
-                sta vrambufval+3,x
-                lda #$3f                ; 3rd color of selected subpalette
-                sta vrambufhi+4,x
+                sta vram_buf_adr_lo+3,x
+                lda user_pal+1,y
+                sta vram_buf_val+3,x
+                lda #$3f                 ; 3rd color of selected subpalette
+                sta vram_buf_adr_hi+4,x
                 lda #(6*4+2)
-                sta vrambuflo+4,x
-                lda userpal+2,y
-                sta vrambufval+4,x
-                lda #$3f                ; 4th color of selected subpalette
-                sta vrambufhi+5,x
+                sta vram_buf_adr_lo+4,x
+                lda user_pal+2,y
+                sta vram_buf_val+4,x
+                lda #$3f                 ; 4th color of selected subpalette
+                sta vram_buf_adr_hi+5,x
                 lda #(7*4+2)
-                sta vrambuflo+5,x
-                lda userpal+3,y
-                sta vrambufval+5,x
-                txa                     ; update buffer pointer
+                sta vram_buf_adr_lo+5,x
+                lda user_pal+3,y
+                sta vram_buf_val+5,x
+                txa                      ; update buffer pointer
                 clc
                 adc #5
-                sta vrambufpos
+                sta vram_buf_len
 
                 rts                     ; return to main loop
 
-userpaloffs     lda paledcurpos         ; offset to user palette (userpal or VRAM $3f00-$3f0f)
+user_pal_offset lda pal_ed_cur_pos      ; offset to user palette (user_pal or VRAM $3f00-$3f0f)
                 beq +                   ; -> A, X
-                lda paledsubpal         ; if 1st color of any subpal, zero,
+                lda pal_ed_subpal       ; if 1st color of any subpal, zero,
                 asl a                   ; else subpalette * 4 + cursor pos
                 asl a
-                ora paledcurpos
+                ora pal_ed_cur_pos
 +               tax
                 rts
 
 ; --- Subroutines used by many parts of the program -----------------------------------------------
 
-hidesprites     lda #$ff                ; hide some sprites
--               sta sprdata,x           ; X = first index on sprite page, Y = count
+hide_sprites    lda #$ff                ; hide some sprites
+-               sta spr_data,x          ; X = first index on sprite page, Y = count
                 inx
                 inx
                 inx
@@ -808,32 +810,32 @@ nmi             pha                     ; push A, X (note: not Y)
                 txa
                 pha
 
-                bit ppustatus           ; reset ppuaddr/ppuscroll latch
+                bit ppu_status          ; reset ppu_addr/ppu_scroll latch
                 lda #$00                ; do OAM DMA
-                sta oamaddr
-                lda #>sprdata
-                sta oamdma
+                sta oam_addr
+                lda #>spr_data
+                sta oam_dma
 
                 ldx #0                  ; update VRAM from buffer
--               lda vrambufhi,x         ; high byte of address (0 = terminator)
+-               lda vram_buf_adr_hi,x   ; high byte of address (0 = terminator)
                 beq +
-                sta ppuaddr
-                lda vrambuflo,x         ; low byte of address
-                sta ppuaddr
-                lda vrambufval,x        ; value
-                sta ppudata
+                sta ppu_addr
+                lda vram_buf_adr_lo,x   ; low byte of address
+                sta ppu_addr
+                lda vram_buf_val,x      ; value
+                sta ppu_data
                 inx
                 jmp -
 
 +               lda #$00                ; clear VRAM buffer (put terminator at beginning)
-                sta vrambufhi+0
-                sta ppuaddr             ; reset PPU address
-                sta ppuaddr
-                sta ppuscroll           ; set PPU scroll
-                lda #vscroll
-                sta ppuscroll
+                sta vram_buf_adr_hi+0
+                sta ppu_addr            ; reset PPU address
+                sta ppu_addr
+                sta ppu_scroll          ; set PPU scroll
+                lda #vert_scroll
+                sta ppu_scroll
                 sec                     ; set flag to let main loop run once
-                ror runmain
+                ror run_main_loop
 
                 pla                     ; pull X, A
                 tax
