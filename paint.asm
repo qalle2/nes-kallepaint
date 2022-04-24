@@ -111,6 +111,9 @@ vert_scroll     equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top
                 base $c000              ; only use last 2 KiB of CPU address space
                 pad $f800, $ff
 
+                db "KALLE PAINT"        ; a string (for fun)
+                align $10, $20
+
 reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/Init_code
                 sei                     ; ignore IRQs
                 cld                     ; disable decimal mode
