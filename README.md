@@ -1,5 +1,27 @@
 # Kalle Paint
-A paint program for the Nintendo Entertainment System (NES). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/). Tested on FCEUX and Mednafen. The assembled program (`.nes`) is in `paint.nes.gz`.
+A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/) (probably with [ASM6f](https://github.com/freem/asm6f) too). Tested on FCEUX and Mednafen.
+
+## Table of contents
+* [Files](#files)
+* [How to assemble](#how-to-assemble)
+* [Features](#features)
+* [How to use](#how-to-use)
+** [Paint mode](#paint-mode)
+** [Attribute edit mode](#attribute-edit-mode)
+** [Palette edit mode](#palette-edit-mode)
+* [Technical info](#technical-info)
+* [Hexadecimal source](#hexadecimal-source)
+* [To do](#to-do)
+
+## Files
+* `assemble.sh`: Linux script that assembles the program (warning: deletes files)
+* `chr-bg.bin.gz`: background CHR ROM data (gzip compressed)
+* `chr-bg-gen.py`: Python script that generates background CHR ROM data
+* `chr-spr.bin.gz`: sprite CHR ROM data (gzip compressed)
+* `chr-spr.png`: sprites as an image
+* `paint.asm`: source code (ASM6)
+* `paint.nes.gz`: assembled program (iNES format, gzip compressed)
+* `snap*.png`: screenshots
 
 ## How to assemble
 * Get the background CHR data:
@@ -9,8 +31,6 @@ A paint program for the Nintendo Entertainment System (NES). Written in 6502 ass
   * Either extract `chr-spr.bin.gz`&hellip;
   * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py chr-spr.png chr-spr.bin`
 * Assemble: run `asm6 paint.asm paint.nes`
-
-Note: The Linux script `assemble.sh` is for my personal use only. Do not run it without reading it.
 
 ## Features
 * 64&times;56 pixels (4&times;4 hardware pixels each)
@@ -84,7 +104,7 @@ Note: the first (topmost) color is shared between all subpalettes.
 * compatibility: NTSC and PAL
 
 ## Hexadecimal source
-The assembled program in hexadecimal, excluding unused space and interrupt vectors (may not be up to date):
+Assembled PRG ROM in hexadecimal, excluding unused space and interrupt vectors (may not be up to date):
 ```
 78d8a2408e1740a2ff9ae88e00208e01208e10408e154020dbf8a900aa95009d
 00029d00039d00049d0005e8d0efa20fbde4f89530ca10f8a25fbd04f99d0006
