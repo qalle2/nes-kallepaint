@@ -1,19 +1,19 @@
 # Kalle Paint
 A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/) (probably with [ASM6f](https://github.com/freem/asm6f) too). Tested on FCEUX and Mednafen.
 
-## Table of contents
-* [Files](#files)
+Table of contents:
+* [List of files](#list-of-files)
 * [How to assemble](#how-to-assemble)
 * [Features](#features)
 * [How to use](#how-to-use)
-** [Paint mode](#paint-mode)
-** [Attribute edit mode](#attribute-edit-mode)
-** [Palette edit mode](#palette-edit-mode)
+ * [Paint mode](#paint-mode)
+ * [Attribute edit mode](#attribute-edit-mode)
+ * [Palette edit mode](#palette-edit-mode)
 * [Technical info](#technical-info)
 * [Hexadecimal source](#hexadecimal-source)
 * [To do](#to-do)
 
-## Files
+## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
 * `chr-bg.bin.gz`: background CHR ROM data (gzip compressed)
 * `chr-bg-gen.py`: Python script that generates background CHR ROM data
