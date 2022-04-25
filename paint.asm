@@ -127,9 +127,7 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 stx dmc_freq            ; disable DMC IRQs
                 stx snd_chn             ; disable sound channels
 
-                bit ppu_status          ; wait until next VBlank starts
--               bit ppu_status
-                bpl -
+                jsr wait_vbl_start      ; wait until next VBlank starts
 
                 lda #$00                ; clear zero page and vram_copy
                 tax
@@ -163,24 +161,19 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 sta cursor_y
                 inc paint_color
 
-                bit ppu_status          ; wait until next VBlank starts
--               bit ppu_status
-                bpl -
+                jsr wait_vbl_start      ; wait until next VBlank starts
 
-                lda #$3f                ; init PPU palette
-                sta ppu_addr
-                ldx #$00
-                stx ppu_addr
+                ldy #$3f                ; init PPU palette
+                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
+                tax
 -               lda initial_pal,x
                 sta ppu_data
                 inx
                 cpx #32
                 bne -
 
-                lda #$20                ; clear name/attribute table 0 ($400 bytes)
-                sta ppu_addr
-                lda #$00
-                sta ppu_addr
+                ldy #$20                ; clear name/attribute table 0 ($400 bytes)
+                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
                 ldy #4
 --              tax
 -               sta ppu_data
@@ -190,16 +183,13 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 bne --
 
                 bit ppu_status          ; reset ppu_addr/ppu_scroll latch
-                lda #$00                ; reset PPU address and set scroll
-                sta ppu_addr
-                sta ppu_addr
-                sta ppu_scroll
+                ldy #$00
+                jsr set_ppu_addr_pg     ; reset PPU address (0 -> A; Y*$100 -> address)
+                sta ppu_scroll          ; set PPU scroll
                 lda #vert_scroll
                 sta ppu_scroll
 
-                bit ppu_status          ; wait until next VBlank starts
--               bit ppu_status
-                bpl -
+                jsr wait_vbl_start      ; wait until next VBlank starts
 
                 lda #%10001000          ; NMI: enabled, sprites: 8*8 px, BG PT: 0, sprite PT: 1,
                 sta ppu_ctrl            ; VRAM address auto-increment: 1 byte, name table: 0
@@ -245,6 +235,11 @@ main_loop       bit run_main_loop       ; the main loop
                 sta vram_buf_adr_hi+1,x
 
                 beq main_loop           ; unconditional
+
+wait_vbl_start  bit ppu_status          ; wait until next VBlank starts
+-               bit ppu_status
+                bpl -
+                rts
 
 initial_pal     ; initial palette
                 ; background (also the initial user palette)
@@ -807,10 +802,17 @@ hide_sprites    lda #$ff                ; hide some sprites
                 bne -
                 rts
 
+set_ppu_addr_pg lda #$00                ; clear A and set PPU address page from Y
+set_ppu_addr    sty ppu_addr            ; set PPU address from Y and A
+                sta ppu_addr            ; (don't use X because NMI routine reads addresses from
+                rts                     ; zero page array and 6502 has LDA zp,x but no LDA zp,y)
+
 ; --- Interrupt routines --------------------------------------------------------------------------
 
-nmi             pha                     ; push A, X (note: not Y)
+nmi             pha                     ; store A, X, Y
                 txa
+                pha
+                tya
                 pha
 
                 bit ppu_status          ; reset ppu_addr/ppu_scroll latch
@@ -819,28 +821,28 @@ nmi             pha                     ; push A, X (note: not Y)
                 lda #>spr_data
                 sta oam_dma
 
-                ldx #0                  ; update VRAM from buffer
--               lda vram_buf_adr_hi,x   ; high byte of address (0 = terminator)
+                ldx #0                  ; update VRAM from buffer (X = source index)
+-               ldy vram_buf_adr_hi,x   ; high byte of address (0 = terminator)
                 beq +
-                sta ppu_addr
                 lda vram_buf_adr_lo,x   ; low byte of address
-                sta ppu_addr
+                jsr set_ppu_addr        ; Y, A -> address
                 lda vram_buf_val,x      ; value
                 sta ppu_data
                 inx
                 jmp -
 
-+               lda #$00                ; clear VRAM buffer (put terminator at beginning)
-                sta vram_buf_adr_hi+0
-                sta ppu_addr            ; reset PPU address
-                sta ppu_addr
++               ldy #$00                ; clear VRAM buffer (put terminator at beginning)
+                sty vram_buf_adr_hi+0
+                jsr set_ppu_addr_pg     ; reset PPU address (0 -> A; Y*$100 -> address)
                 sta ppu_scroll          ; set PPU scroll
                 lda #vert_scroll
                 sta ppu_scroll
                 sec                     ; set flag to let main loop run once
                 ror run_main_loop
 
-                pla                     ; pull X, A
+                pla                     ; restore Y, X, A
+                tay
+                pla
                 tax
                 pla
 
