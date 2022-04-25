@@ -45,18 +45,18 @@ Restrictions on color use:
 By default, the screen is filled with the first color of the first subpalette.
 
 ## How to use
-There are three modes. Press select at any time to cycle between them.
+There are three modes. Press select at any time to cycle between them. However, beginners are advised to stick to the default mode (paint mode) for quite a while before experimenting with the other modes.
 
 ### Paint mode
 ![paint mode](snap1.png)
 
-The program starts in this mode. The cursor reflects the selected brush size and paint color.
+The program starts in this mode. The cursor is a small or medium non-blinking square. It reflects the selected brush size and paint color.
 
 Buttons:
 * up/down/left/right: move cursor (hold down to move repeatedly)
-* start: toggle between small and large brush (1&times;1 pixels and 2&times;2 pixels)
-* B: change paint color (0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 0)
-* A: paint at cursor using selected color and brush
+* start: toggle between small and large brush
+* B: increment paint color (there are four colors per subpalette)
+* A: paint at cursor using selected color and brush (can be held down while moving the cursor)
 * select: switch to attribute edit mode
 
 Note: the cursor is invisible if it is on a pixel of the same color.
@@ -66,24 +66,25 @@ Hint: to move long distances faster, switch to the large brush.
 ### Attribute edit mode
 ![attribute edit mode](snap2.png)
 
-This mode looks like the paint mode except that the cursor is a large blinking square (4&times;4 pixels).
+This mode looks like the paint mode except that the cursor is a large blinking square.
 
 Buttons:
 * up/down/left/right: move cursor
 * B/A: decrement/increment subpalette at cursor (0/1/2/3)
 * select: switch to palette edit mode
+* start: unused
 
 Note: changing the subpalette has no visible effect if the selected square only contains the first color of a subpalette. (That color is shared between all subpalettes.)
 
 ### Palette edit mode
 ![palette edit mode](snap3.png)
 
-The palette editor is a small black window at the bottom right corner of the screen.
+The palette editor is a black window at the bottom right corner of the screen.
 
 Indicators:
 * `P`: number of subpalette being edited (`0`&ndash;`3`)
 * `C`: NES color number of selected color in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
-* colored squares: colors in selected subpalette
+* colored squares: colors in selected subpalette (topmost = first)
 * blinking cursor: highlights the color being edited
 
 Buttons:

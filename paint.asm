@@ -9,6 +9,7 @@
 ;   but not earlier than at 41st column (equ is an exception)
 
 ; TODO: in VRAM buffer, only use length var instead of var & terminator
+; TODO: cursor acceleration when holding down an arrow
 
 ; --- Constants -----------------------------------------------------------------------------------
 
