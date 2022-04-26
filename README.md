@@ -9,6 +9,7 @@ Table of contents:
   * [Paint mode](#paint-mode)
   * [Attribute edit mode](#attribute-edit-mode)
   * [Palette edit mode](#palette-edit-mode)
+  * [Button summary](#button-summary)
 * [Technical info](#technical-info)
 * [Hexadecimal source](#hexadecimal-source)
 * [To do](#to-do)
@@ -95,6 +96,27 @@ Buttons:
 * select: switch to paint mode
 
 Note: the first (topmost) color is shared between all subpalettes.
+
+### Button summary
+```
+Button | In paint mode          | In attribute edit mode | In palette edit mode
+-------+------------------------+------------------------+---------------------
+up     |                          cursor up
+-------+-----------------------------------------------------------------------
+down   |                          cursor down
+-------+-------------------------------------------------+---------------------
+left   |                  cursor left                    | color -1
+-------+-------------------------------------------------+---------------------
+right  |                  cursor right                   | color +1
+-------+------------------------+------------------------+---------------------
+B      | color +                | palette -              | color -16
+-------+------------------------+------------------------+---------------------
+A      | paint                  | palette +              | color +16
+-------+------------------------+------------------------+---------------------
+start  | brush size             | unused                 | palette +
+-------+------------------------+------------------------+---------------------
+select | to attribute edit mode | to palette edit mode   | to paint mode
+```
 
 ## Technical info
 * mapper: NROM (iNES mapper number 0)
