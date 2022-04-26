@@ -93,9 +93,8 @@ st_pal2         equ $15  ; right half of "Pal" (palette editor)
 st_col_ind      equ $16  ; color indicator (palette editor)
 
 ; misc
-blink_rate      equ 4      ; attribute/palette editor cursor blink rate (0=fastest, 7=slowest)
-brush_delay     equ 10     ; paint cursor move repeat delay (frames)
-vert_scroll     equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top of visible area)
+blink_rate      equ 4    ; attribute/palette editor cursor blink rate (0-7; 0=fastest)
+brush_delay     equ 10   ; paint cursor move repeat delay (frames)
 
 ; --- iNES header ---------------------------------------------------------------------------------
 
@@ -103,13 +102,13 @@ vert_scroll     equ 256-8  ; PPU vertical scroll value (VRAM $2000 is at the top
                 base $0000
                 db "NES", $1a            ; file id
                 db 1, 1                  ; 16 KiB PRG ROM, 8 KiB CHR ROM
-                db %00000001, %00000000  ; NROM mapper, vertical name table mirroring
+                db %00000000, %00000000  ; NROM mapper, horizontal name table mirroring
                 pad $0010, $00           ; unused
 
-; --- Start of PRG ROM; initialization and main loop ----------------------------------------------
+; --- Initialization & main loop ------------------------------------------------------------------
 
-                base $c000              ; only use last 2 KiB of CPU address space
-                pad $f800, $ff
+                base $c000              ; start of PRG ROM;
+                pad $f800, $ff          ; only use last 2 KiB of CPU address space
 
 reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/Init_code
                 sei                     ; ignore IRQs
@@ -154,14 +153,14 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
 
                 lda #30                 ; init misc vars
                 sta cursor_x
-                lda #26
+                lda #28
                 sta cursor_y
                 inc paint_color
 
                 jsr wait_vbl_start      ; wait until next VBlank starts
 
                 ldy #$3f                ; init PPU palette
-                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
+                jsr set_ppuaddrpage     ; 0 -> A; Y*$100 -> address
                 tax
 -               lda initial_pal,x
                 sta ppu_data
@@ -170,7 +169,7 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 bne -
 
                 ldy #$20                ; clear name/attribute table 0 ($400 bytes)
-                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
+                jsr set_ppuaddrpage     ; 0 -> A; Y*$100 -> address
                 ldy #4
 --              tax
 -               sta ppu_data
@@ -179,23 +178,20 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 dey
                 bne --
 
-                bit ppu_status          ; reset ppu_addr/ppu_scroll latch
-                ldy #$00
-                jsr set_ppu_addr_pg     ; reset PPU address (0 -> A; Y*$100 -> address)
-                sta ppu_scroll          ; set PPU scroll
-                lda #vert_scroll
-                sta ppu_scroll
-
+                jsr reset_scroll        ; reset PPU scroll
                 jsr wait_vbl_start      ; wait until next VBlank starts
 
                 lda #%10001000          ; NMI: enabled, sprites: 8*8 px, BG PT: 0, sprite PT: 1,
                 sta ppu_ctrl            ; VRAM address auto-increment: 1 byte, name table: 0
 
-                lda #%00011110          ; BG & sprites: show on entire screen,
-                sta ppu_mask            ; R/G/B de-emphasis: off, grayscale mode: off
+                lda #%00011110          ; show BG & sprites on entire screen
+                sta ppu_mask
 
-main_loop       bit run_main_loop       ; the main loop
-                bpl main_loop           ; wait until NMI routine has run
+                ; fall through to main loop
+
+main_loop       bit run_main_loop       ; wait until NMI routine has run
+                bpl main_loop
+
                 lsr run_main_loop       ; prevent main loop from running until after next NMI
                 lda pad_status          ; store previous joypad status
                 sta prev_pad_status
@@ -227,6 +223,8 @@ main_loop       bit run_main_loop       ; the main loop
                 inc blink_timer         ; advance timer
                 jsr jump_engine         ; run code for the program mode we're in
                 jmp main_loop
+
+; --- Initialization & main loop - subs & arrays --------------------------------------------------
 
 wait_vbl_start  bit ppu_status          ; wait until next VBlank starts
 -               bit ppu_status
@@ -333,11 +331,11 @@ pm_arrows       lda pad_status          ; arrow logic
                 and #(pad_u|pad_d|pad_l|pad_r)
                 bne +
                 sta delay_left          ; if none pressed, clear cursor move delay
-                beq paint_mode2         ; unconditional; ends with rts
+                beq paint_mode2         ; unconditional; ends with RTS
 +               lda delay_left          ; else if delay > 0, decrement it and exit
                 beq +
                 dec delay_left
-                bpl paint_mode2         ; unconditional; ends with rts
+                bpl paint_mode2         ; unconditional; ends with RTS
 
 +               lda pad_status          ; check horizontal arrows
                 lsr a
@@ -366,7 +364,7 @@ pm_check_vert   lda pad_status          ; check vertical arrows
 +               lda cursor_y            ; down
                 sec
                 adc brush_size
-                cmp #56
+                cmp #60
                 bne +++
                 lda #0
                 beq +++                 ; unconditional
@@ -374,7 +372,7 @@ pm_check_vert   lda pad_status          ; check vertical arrows
                 clc
                 sbc brush_size
                 bpl +++
-                lda #56
+                lda #60
                 clc
                 sbc brush_size
 +++             sta cursor_y            ; store vertical position
@@ -391,7 +389,7 @@ paint_mode2     ; paint mode, part 2
                 lda cursor_y            ; Y pos
                 asl a
                 asl a
-                adc #(8-1)              ; carry is always clear
+                sbc #0                  ; carry is always clear
                 sta spr_data+0+0
                 ldx brush_size          ; tile
                 lda cursor_tiles,x
@@ -548,14 +546,14 @@ ae_check_vert   lda pad_status          ; check vertical arrows
                 bcc attr_editor2        ; unconditional
 +               lda cursor_y            ; down
                 adc #(4-1)              ; carry is always set
-                cmp #56
+                cmp #60
                 bne +++
                 lda #0
                 beq +++                 ; unconditional
 ++              lda cursor_y            ; up
                 sbc #4                  ; carry is always set
                 bpl +++
-                lda #(56-4)
+                lda #(60-4)
 +++             sta cursor_y            ; store vertical position
 
 attr_editor2    lda cursor_x            ; update cursor sprite X
@@ -570,11 +568,11 @@ attr_editor2    lda cursor_x            ; update cursor sprite X
                 asl a
                 asl a
                 adc #(8-1)              ; carry is always clear
-                sta spr_data+4+0
-                sta spr_data+2*4+0
-                adc #8                  ; carry is always clear
                 sta spr_data+3*4+0
                 sta spr_data+4*4+0
+                sbc #(8-1)              ; carry is always clear
+                sta spr_data+4+0
+                sta spr_data+2*4+0
                 rts                     ; return to main loop
 
 bitpair_masks   db %00000001, %00000011  ; AND/XOR masks for changing bit pairs
@@ -786,10 +784,15 @@ hide_sprites    lda #$ff                ; hide some sprites
                 bne -
                 rts
 
-set_ppu_addr_pg lda #$00                ; clear A and set PPU address page from Y
+set_ppuaddrpage lda #$00                ; clear A and set PPU address page from Y
 set_ppu_addr    sty ppu_addr            ; set PPU address from Y and A
                 sta ppu_addr            ; (don't use X because NMI routine reads addresses from
                 rts                     ; zero page array and 6502 has LDA zp,x but no LDA zp,y)
+
+reset_scroll    lda #0                  ; reset PPU scroll
+                sta ppu_scroll
+                sta ppu_scroll
+                rts
 
 ; --- Interrupt routines --------------------------------------------------------------------------
 
@@ -816,14 +819,10 @@ nmi             pha                     ; store A, X, Y
                 sta ppu_data
                 jmp -
 
-+               ldy #$00                ; reset PPU address, set scroll
-                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
-                sta ppu_scroll
-                lda #vert_scroll
-                sta ppu_scroll
-
-                sec                     ; set flag to let main loop run once
-                ror run_main_loop
++               jsr reset_scroll        ; set PPU registers
+                lda #%10001000          ; same value as in initialization
+                sta ppu_ctrl
+                sta run_main_loop       ; set flag (MSB) to let main loop run once
 
                 pla                     ; restore Y, X, A
                 tay
