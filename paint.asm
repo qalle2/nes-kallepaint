@@ -105,7 +105,7 @@ brush_delay     equ 10   ; paint cursor move repeat delay (frames)
                 db %00000000, %00000000  ; NROM mapper, horizontal name table mirroring
                 pad $0010, $00           ; unused
 
-; --- Initialization & main loop ------------------------------------------------------------------
+; --- Initialization ------------------------------------------------------------------------------
 
                 base $c000              ; start of PRG ROM;
                 pad $f800, $ff          ; only use last 2 KiB of CPU address space
@@ -187,44 +187,7 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 lda #%00011110          ; show BG & sprites on entire screen
                 sta ppu_mask
 
-                ; fall through to main loop
-
-main_loop       bit run_main_loop       ; wait until NMI routine has run
-                bpl main_loop
-
-                lsr run_main_loop       ; prevent main loop from running until after next NMI
-                lda pad_status          ; store previous joypad status
-                sta prev_pad_status
-
-                lda #$01                ; read first joypad or Famicom expansion port controller
-                sta joypad1             ; see https://www.nesdev.org/wiki/Controller_reading_code
-                sta pad_status          ; init joypads; set LSB of variable to detect end of loop
-                lsr a
-                sta joypad1
--               lda joypad1             ; read 8 buttons
-                and #%00000011
-                cmp #$01
-                rol pad_status
-                bcc -
-
-                lda #$3f                ; tell NMI routine to update blinking cursor in VRAM
-                sta vram_buf_adrhi+0
-                lda #(4*4+3)
-                sta vram_buf_adrlo+0
-                ldx #col_blink1
-                lda blink_timer
-                and #(1<<blink_rate)
-                beq +
-                ldx #col_blink2
-+               stx vram_buf_val+0
-                lda #1
-                sta vram_buf_len
-
-                inc blink_timer         ; advance timer
-                jsr jump_engine         ; run code for the program mode we're in
                 jmp main_loop
-
-; --- Initialization & main loop - subs & arrays --------------------------------------------------
 
 wait_vbl_start  bit ppu_status          ; wait until next VBlank starts
 -               bit ppu_status
@@ -275,6 +238,43 @@ initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 db 26*8-1, st_cover,   %00000001, 30*8  ; #21: cover (to right of color 2)
                 db 27*8-1, st_cover,   %00000001, 28*8  ; #22: cover (to left  of color 3)
                 db 27*8-1, st_cover,   %00000001, 30*8  ; #23: cover (to right of color 3)
+
+; --- Main loop -----------------------------------------------------------------------------------
+
+main_loop       bit run_main_loop       ; wait until NMI routine has run
+                bpl main_loop
+
+                lsr run_main_loop       ; prevent main loop from running until after next NMI
+                lda pad_status          ; store previous joypad status
+                sta prev_pad_status
+
+                lda #$01                ; read first joypad or Famicom expansion port controller
+                sta joypad1             ; see https://www.nesdev.org/wiki/Controller_reading_code
+                sta pad_status          ; init joypads; set LSB of variable to detect end of loop
+                lsr a
+                sta joypad1
+-               lda joypad1             ; read 8 buttons
+                and #%00000011
+                cmp #$01
+                rol pad_status
+                bcc -
+
+                lda #$3f                ; tell NMI routine to update blinking cursor in VRAM
+                sta vram_buf_adrhi+0
+                lda #(4*4+3)
+                sta vram_buf_adrlo+0
+                ldx #col_blink1
+                lda blink_timer
+                and #(1<<blink_rate)
+                beq +
+                ldx #col_blink2
++               stx vram_buf_val+0
+                lda #1
+                sta vram_buf_len
+
+                inc blink_timer         ; advance timer
+                jsr jump_engine         ; run code for the program mode we're in
+                jmp main_loop
 
 jump_engine     ldx mode                ; jump engine (run one sub depending on program mode)
                 lda jump_table_hi,x     ; note: don't inline this sub

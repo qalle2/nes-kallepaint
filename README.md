@@ -70,7 +70,7 @@ This mode looks like the paint mode except that the cursor is a large blinking s
 
 Buttons:
 * up/down/left/right: move cursor
-* B/A: decrement/increment subpalette at cursor (0/1/2/3)
+* B/A: decrement/increment subpalette at cursor (there are four subpalettes)
 * select: switch to palette edit mode
 * start: unused
 
@@ -90,7 +90,7 @@ Indicators:
 * blinking cursor: highlights the color being edited
 
 Buttons:
-* start: increment subpalette (0 &rarr; 1 &rarr; 2 &rarr; 3 &rarr; 0)
+* start: increment subpalette (there are four subpalettes)
 * up/down: move cursor
 * left/right: decrement/increment ones of color number
 * B/A: decrement/increment 16s of color number
