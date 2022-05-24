@@ -3,7 +3,6 @@ A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainme
 
 Table of contents:
 * [List of files](#list-of-files)
-* [How to assemble](#how-to-assemble)
 * [Features](#features)
 * [How to use](#how-to-use)
   * [Paint mode](#paint-mode)
@@ -15,22 +14,9 @@ Table of contents:
 
 ## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
-* `chr-bg.bin.gz`: background CHR ROM data (gzip compressed)
-* `chr-bg-gen.py`: Python script that generates background CHR ROM data
-* `chr-spr.bin.gz`: sprite CHR ROM data (gzip compressed)
-* `chr-spr.png`: sprites as an image
 * `paint.asm`: source code (ASM6)
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
 * `snap*.png`: screenshots
-
-## How to assemble
-* Get the background CHR data:
-  * Either extract `chr-bg.bin.gz`&hellip;
-  * &hellip;or run `python3 chr-bg-gen.py chr-bg.bin`
-* Get the sprite CHR data:
-  * Either extract `chr-spr.bin.gz`&hellip;
-  * &hellip; or get `nes_chr_encode.py` and its dependencies from [my NES utilities](https://github.com/qalle2/nes-util) and run `python3 nes_chr_encode.py chr-spr.png chr-spr.bin`
-* Assemble: run `asm6 paint.asm paint.nes`
 
 ## Features
 * 64&times;60 "pixels" (4&times;4 hardware pixels each; a couple of topmost and bottommost pixel rows may be invisible depending on your screen)
