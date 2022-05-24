@@ -1,14 +1,4 @@
 ; Kalle Paint (NES, ASM6)
-; Style:
-; - ASCII
-; - no tabs
-; - lines: 100 characters or less (incl. newline)
-; - identifiers: 15 characters or less
-; - instructions start at 17th column
-; - within a block of instructions, comments start at 2 columns after longest instruction,
-;   but not earlier than at 41st column (equ is an exception)
-
-; TODO: cursor acceleration when holding down an arrow
 
 ; --- Constants -----------------------------------------------------------------------------------
 
@@ -22,19 +12,19 @@ vram_buf_val    equ $1c    ; VRAM buffer - values (6 bytes)
 vram_offset     equ $22    ; offset to name/attr table 0 and vram_copy (2 bytes, low first; 0-$3ff)
 vram_copy_addr  equ $24    ; address in vram_copy (2 bytes, low first; vram_copy...vram_copy+$3ff)
 mode            equ $26    ; program mode: 0 = paint, 1 = attribute editor, 2 = palette editor
-run_main_loop   equ $27    ; run main loop? (flag; only MSB is important)
-pad_status      equ $28    ; first joypad status (bits: A, B, select, start, up, down, left, right)
-prev_pad_status equ $29    ; first joypad status on previous frame
-vram_buf_len    equ $2a    ; VRAM buffer - number of bytes (0-6)
-delay_left      equ $2b    ; cursor move delay left (paint mode)
-brush_size      equ $2c    ; cursor type (paint mode; 0=small, 1=big)
-paint_color     equ $2d    ; paint color (paint mode; 0-3)
-cursor_x        equ $2e    ; cursor X position (paint/attribute edit mode; 0-63)
-cursor_y        equ $2f    ; cursor Y position (paint/attribute edit mode; 0-55)
-blink_timer     equ $30    ; cursor blink timer (attribute/palette editor)
-pal_ed_cur_pos  equ $31    ; cursor position (palette editor; 0-3)
-pal_ed_subpal   equ $32    ; selected subpalette (palette editor; 0-3)
-ppu_ctrl_copy   equ $33    ; copy of ppu_ctrl
+ppu_ctrl_copy   equ $27    ; copy of ppu_ctrl
+run_main_loop   equ $28    ; run main loop? (flag; only MSB is important)
+pad_status      equ $29    ; first joypad status (bits: A, B, select, start, up, down, left, right)
+prev_pad_status equ $2a    ; first joypad status on previous frame
+vram_buf_len    equ $2b    ; VRAM buffer - number of bytes (0-6)
+delay_left      equ $2c    ; cursor move delay left (paint mode)
+brush_size      equ $2d    ; cursor type (paint mode; 0=small, 1=big)
+paint_color     equ $2e    ; paint color (paint mode; 0-3)
+cursor_x        equ $2f    ; cursor X position (paint/attribute edit mode; 0-63)
+cursor_y        equ $30    ; cursor Y position (paint/attribute edit mode; 0-59)
+blink_timer     equ $31    ; cursor blink timer (attribute/palette editor)
+pal_ed_cur_pos  equ $32    ; cursor position (palette editor; 0-3)
+pal_ed_subpal   equ $33    ; selected subpalette (palette editor; 0-3)
 temp            equ $34    ; temporary
 vram_copy       equ $0200  ; copy of name/attribute table 0 ($400 bytes; must be at $xx00)
 spr_data        equ $0600  ; sprite data ($100 bytes; see initial_spr_dat for layout)
@@ -84,14 +74,6 @@ col_paled_text  equ $30  ; palette editor text (white)
 col_blink1      equ $0f  ; blinking cursor 1 (black)
 col_blink2      equ $30  ; blinking cursor 2 (white)
 
-; sprite tile indexes (note: hexadecimal digits "0"-"F" must start at $00)
-st_cur_sma      equ $10  ; small paint cursor
-st_cur_big      equ $11  ; large paint cursor
-st_cur_atr      equ $12  ; corner of attribute cursor
-st_cover        equ $13  ; cover (palette editor)
-st_pal          equ $14  ; "P" (palette editor)
-st_col_ind      equ $15  ; color indicator (palette editor)
-
 ; misc
 blink_rate      equ 4    ; attribute/palette editor cursor blink rate (0-7; 0=fastest)
 brush_delay     equ 10   ; paint cursor move repeat delay (frames)
@@ -102,7 +84,7 @@ brush_delay     equ 10   ; paint cursor move repeat delay (frames)
                 base $0000
                 db "NES", $1a            ; file id
                 db 1, 0                  ; 16 KiB PRG ROM, 0 KiB CHR ROM (uses CHR RAM)
-                db %00000000, %00000000  ; NROM mapper, horizontal name table mirroring
+                db %00000000, %00000000  ; NROM mapper; name table mirroring doesn't matter
                 pad $0010, $00           ; unused
 
 ; --- Initialization ------------------------------------------------------------------------------
@@ -141,8 +123,8 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 dex
                 bpl -
 
-                ldx #(24*4-1)           ; init sprite data
--               lda initial_spr_dat,x
+                ldx #(init_sprdat_end-initial_spr_dat-1)
+-               lda initial_spr_dat,x   ; init sprite data
                 sta spr_data,x
                 dex
                 bpl -
@@ -168,46 +150,58 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 cpx #32
                 bne -
 
-                ; generate background pattern table data to PT0 (256 tiles, $1000 bytes)
-                ; for each bit pair %ab, %cd, %AB, %CD in each tile index %AaBbCcDd:
-                ;     convert bit pair into byte as follows and write it 4 times:
-                ;     %00->$00, %01->$0f, %10->$f0, %11->$ff
+                ; generate background pattern table data to PT0
+                ; 256 tiles, all combinations of 2*2 subpixels and 4 colors
+                ; bits of tile index: %AaBbCcDd:
+                ;     %Aa/%Bb = top    left/right subpixel
+                ;     %Cc/%Dd = bottom left/right subpixel
+                ; to generate data:
+                ;     for %ab, %cd, %AB, %CD in each tile index:
+                ;         convert bit pair into byte as follows and write it 4 times:
+                ;             %00->$00, %01->$0f, %10->$f0, %11->$ff
+                ; example: tile %10001011 = 00000000 0f0f0f0f f0f0f0f0 ffffffff
                 ;
                 ldy #$00                ; PPU address $0000
                 jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
                 tax                     ; X = tile index; Y = temporary
                 ;
--               txa                     ; bits: %AaBbCcDd
-                jsr write4_pt_bytes     ; use bits %ab
-                jsr write4_pt_bytes     ; use bits %cd
+-               txa
+                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %ab
+                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %cd
                 ;
                 txa
-                lsr a                   ; bits: %0AaBbCcD
-                jsr write4_pt_bytes     ; use bits %AB
-                jsr write4_pt_bytes     ; use bits %CD
+                lsr a
+                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %AB
+                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %CD
                 ;
                 inx
                 bne -
 
-                ldx #16                 ; clear sprite pattern table
-                lda #$00                ; (PT1, $1000-$1fff; start address is already correct)
-                tay
--               jsr fill_vram           ; write A to PPU Y times and clear Y
-                dex
-                bne -
-
-                ldy #$10                ; copy sprite pattern table data to PT1
-                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
+                ldx #0                  ; copy sprite pattern table data to PT1 (PPU address is
+-               lda pt_data_spr,x       ; already correct); X = source index; Y = temporary
                 ;
-                ldx #0                  ; X = source index
--               lda pt_data_spr,x
-                jsr write2_pt_bytes     ; use nybbles as indexes to 2 pattern table bytes
+                pha                     ; write byte using high nybble
+                lsr a
+                lsr a
+                lsr a
+                lsr a
+                tay
+                lda pt_spr_bytes,y
+                sta ppu_data
+                ;
+                pla                     ; write byte using low nybble
+                and #%00001111
+                tay
+                lda pt_spr_bytes,y
+                sta ppu_data
+                ;
                 inx
                 cpx #(pt_data_spr_end-pt_data_spr)
                 bne -
 
                 ldy #$20                ; clear name/attribute table 0 ($400 bytes)
                 jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
+                ;
                 ldx #4
                 tay
 -               jsr fill_vram           ; write A to PPU Y times and clear Y
@@ -250,34 +244,35 @@ initial_pal     ; initial palette
 
 initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 ; paint mode
-                db    $ff, st_cur_sma, %00000000,    0  ; #0:  cursor
+                db    $ff, $10, %00000000,    0  ; #0:  cursor
                 ; attribute editor
-                db    $ff, st_cur_atr, %00000000,    0  ; #1:  cursor top left
-                db    $ff, st_cur_atr, %01000000,    0  ; #2:  cursor top right
-                db    $ff, st_cur_atr, %10000000,    0  ; #3:  cursor bottom left
-                db    $ff, st_cur_atr, %11000000,    0  ; #4:  cursor bottom right
+                db    $ff, $12, %00000000,    0  ; #1:  cursor top left
+                db    $ff, $12, %01000000,    0  ; #2:  cursor top right
+                db    $ff, $12, %10000000,    0  ; #3:  cursor bottom left
+                db    $ff, $12, %11000000,    0  ; #4:  cursor bottom right
                 ; palette editor
-                db    $ff, st_cur_big, %00000000, 29*8  ; #5:  cursor
-                db 22*8-1, st_pal,     %00000001, 28*8  ; #6:  "P"
-                db 22*8-1, st_cover,   %00000001, 29*8  ; #7:  cover (to right of "P")
-                db 22*8-1, $00,        %00000001, 30*8  ; #8:  subpalette number
-                db 23*8-1, $0c,        %00000001, 28*8  ; #9:  "C"
-                db 23*8-1, $00,        %00000001, 29*8  ; #10: color number - 16s
-                db 23*8-1, $00,        %00000001, 30*8  ; #11: color number - ones
-                db 24*8-1, st_col_ind, %00000000, 29*8  ; #12: color 0
-                db 25*8-1, st_col_ind, %00000001, 29*8  ; #13: color 1
-                db 26*8-1, st_col_ind, %00000010, 29*8  ; #14: color 2
-                db 27*8-1, st_col_ind, %00000011, 29*8  ; #15: color 3
-                db 24*8-1, st_cover,   %00000001, 28*8  ; #16: cover (to left  of color 0)
-                db 24*8-1, st_cover,   %00000001, 30*8  ; #17: cover (to right of color 0)
-                db 25*8-1, st_cover,   %00000001, 28*8  ; #18: cover (to left  of color 1)
-                db 25*8-1, st_cover,   %00000001, 30*8  ; #19: cover (to right of color 1)
-                db 26*8-1, st_cover,   %00000001, 28*8  ; #20: cover (to left  of color 2)
-                db 26*8-1, st_cover,   %00000001, 30*8  ; #21: cover (to right of color 2)
-                db 27*8-1, st_cover,   %00000001, 28*8  ; #22: cover (to left  of color 3)
-                db 27*8-1, st_cover,   %00000001, 30*8  ; #23: cover (to right of color 3)
+                db    $ff, $11, %00000000, 29*8  ; #5:  cursor
+                db 22*8-1, $14, %00000001, 28*8  ; #6:  "P"
+                db 22*8-1, $13, %00000001, 29*8  ; #7:  cover (to right of "P")
+                db 22*8-1, $00, %00000001, 30*8  ; #8:  subpalette number
+                db 23*8-1, $0c, %00000001, 28*8  ; #9:  "C"
+                db 23*8-1, $00, %00000001, 29*8  ; #10: color number - 16s
+                db 23*8-1, $00, %00000001, 30*8  ; #11: color number - ones
+                db 24*8-1, $15, %00000000, 29*8  ; #12: color 0
+                db 25*8-1, $15, %00000001, 29*8  ; #13: color 1
+                db 26*8-1, $15, %00000010, 29*8  ; #14: color 2
+                db 27*8-1, $15, %00000011, 29*8  ; #15: color 3
+                db 24*8-1, $13, %00000001, 28*8  ; #16: cover (to left  of color 0)
+                db 24*8-1, $13, %00000001, 30*8  ; #17: cover (to right of color 0)
+                db 25*8-1, $13, %00000001, 28*8  ; #18: cover (to left  of color 1)
+                db 25*8-1, $13, %00000001, 30*8  ; #19: cover (to right of color 1)
+                db 26*8-1, $13, %00000001, 28*8  ; #20: cover (to left  of color 2)
+                db 26*8-1, $13, %00000001, 30*8  ; #21: cover (to right of color 2)
+                db 27*8-1, $13, %00000001, 28*8  ; #22: cover (to left  of color 3)
+                db 27*8-1, $13, %00000001, 30*8  ; #23: cover (to right of color 3)
+init_sprdat_end
 
-write4_pt_bytes ; write 4 bytes of background pattern table data
+wr_pt_bg_bytes  ; write 4 bytes of background pattern table data
                 ; in: bits %xAxBxxxx of A = which byte to write
                 ; side effects: shifts A left 4 times; trashes Y and temp; writes ppu_data 4 times
                 ;
@@ -292,37 +287,17 @@ write4_pt_bytes ; write 4 bytes of background pattern table data
                 ;
                 pha                     ; 4 * [$00,$0f,$f0,$ff][temp] -> PPU
                 ldy temp                ; trash Y (but not A/X)
-                lda pt_bytes,y
+                lda pt_bg_bytes,y
                 ldy #4
                 jsr fill_vram           ; write A to PPU Y times and clear Y
                 pla
                 ;
                 rts
 
-pt_bytes        hex 00 0f f0 ff
-
-write2_pt_bytes ; in: A = byte from pt_data_spr
-                ; write 2 pattern table bytes using nybbles of A as indexes to pt_data_bytes
-                ;
-                pha                     ; get 1st byte from high nybble
-                lsr a
-                lsr a
-                lsr a
-                lsr a
-                tay
-                lda pt_data_bytes,y
-                sta ppu_data
-                ;
-                pla                     ; get 2nd byte from low nybble
-                and #%00001111
-                tay
-                lda pt_data_bytes,y
-                sta ppu_data
-                ;
-                rts
+pt_bg_bytes     hex 00 0f f0 ff
 
 pt_data_spr     ; sprite pattern table data (note: "cXonY" means "color X on color Y")
-                ; each nybble is a reference to pt_data_bytes
+                ; each nybble is an index to pt_spr_bytes
                 hex 99999999 04333340  ; tile $00 ("0"; all digits are c3on1)
                 hex 99999999 01111110  ; tile $01 ("1")
                 hex 99999999 04142240  ; tile $02 ("2")
@@ -341,23 +316,23 @@ pt_data_spr     ; sprite pattern table data (note: "cXonY" means "color X on col
                 hex 99999999 04242220  ; tile $0f ("F")
                 hex 87780000 87780000  ; tile $10 (small paint cursor, c3on0)
                 hex 96666669 96666669  ; tile $11 (large paint cursor, c3on0)
-                hex 95555555 95555555  ; tile $12 (attr. cursor corner, c3on0)
+                hex 95555555 95555555  ; tile $12 (attribute cursor corner, c3on0)
                 hex 99999999 00000000  ; tile $13 (color 1 only)
                 hex 99999999 04342220  ; tile $14 ("P", c3on1)
                 hex 00000009 99999990  ; tile $15 (rectangle, c2on1)
 pt_data_spr_end
 
-pt_data_bytes   ; see pt_data_spr
-                db %00000000  ; $00, index 0
-                db %00000110  ; $06, index 1
-                db %01100000  ; $60, index 2
-                db %01100110  ; $66, index 3
-                db %01111110  ; $7e, index 4
-                db %10000000  ; $80, index 5
-                db %10000001  ; $81, index 6
-                db %10010000  ; $90, index 7
-                db %11110000  ; $f0, index 8
-                db %11111111  ; $ff, index 9
+pt_spr_bytes    ; see pt_data_spr
+                db %00000000  ; index 0
+                db %00000110  ; index 1
+                db %01100000  ; index 2
+                db %01100110  ; index 3
+                db %01111110  ; index 4
+                db %10000000  ; index 5
+                db %10000001  ; index 6
+                db %10010000  ; index 7
+                db %11110000  ; index 8
+                db %11111111  ; index 9
 
 ; --- Main loop -----------------------------------------------------------------------------------
 
@@ -593,7 +568,7 @@ update_tile     ldy #0                  ; update byte in vram_copy
                 jsr to_vram_buffer      ; tell NMI routine to update A to VRAM
 rts_label       rts                     ; return to main loop
 
-cursor_tiles    db st_cur_sma, st_cur_big                      ; brush size -> cursor tile
+cursor_tiles    db $10, $11                                    ; small/large cursor tile
 solid_tiles     db %00000000, %01010101, %10101010, %11111111  ; tiles of solid color 0-3
 pixel_masks     db %11000000, %00110000, %00001100, %00000011  ; bitmasks for pxls within tile ind
 
@@ -751,22 +726,22 @@ to_vram_buffer  ldx vram_buf_len        ; tell NMI routine to write A to VRAM $2
 pal_editor      lda prev_pad_status     ; if any button pressed on previous frame, ignore all
                 bne pal_editor2
 
-                lda pad_status
-                lsr a
-                bcs pe_inc_ones         ; right
-                lsr a
-                bcs pe_dec_ones         ; left
-                lsr a
-                bcs pe_down             ; down
-                lsr a
-                bcs pe_up               ; up
-                lsr a
-                bcs pe_inc_subpal       ; start
-                lsr a
-                bcs pe_exit             ; select; ends with RTS
-                lsr a
+                lda pad_status          ; react to buttons (shift left to take advantage of BMI)
+                ;
+                asl a
+                bcs pe_inc_16s          ; A
+                asl a
                 bcs pe_dec_16s          ; B
-                bne pe_inc_16s          ; A
+                asl a
+                bcs pe_exit             ; select; ends with RTS
+                asl a
+                bcs pe_inc_subpal       ; start
+                asl a
+                bcs pe_up               ; up
+                asl a
+                bcs pe_down             ; down
+                bmi pe_dec_ones         ; left
+                bne pe_inc_ones         ; right
                 beq pal_editor2         ; unconditional
 
 pe_exit         ldx #(5*4)              ; exit palette editor (switch to paint mode)

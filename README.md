@@ -1,5 +1,5 @@
 # Kalle Paint
-A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Written in 6502 assembly. Assembles with [ASM6](https://github.com/qalle2/asm6/) (probably with [ASM6f](https://github.com/freem/asm6f) too). Tested on FCEUX and Mednafen.
+A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Assembles with [ASM6](https://www.romhacking.net/utilities/674/). Tested on FCEUX and Mednafen.
 
 Table of contents:
 * [List of files](#list-of-files)
@@ -14,6 +14,8 @@ Table of contents:
 
 ## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
+* `hexdump.py`: creates `hexdump.txt`
+* `hexdump.txt`: assembled program in hexadecimal
 * `paint.asm`: source code (ASM6)
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
 * `snap*.png`: screenshots
@@ -108,11 +110,12 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 ## Technical info
 * mapper: NROM (iNES mapper number 0)
 * PRG ROM: 16 KiB (only the last 2 KiB is actually used)
-* CHR ROM: 8 KiB
-* name table mirroring: horizontal (does not matter)
+* CHR ROM: 0 KiB (uses CHR RAM)
+* name table mirroring: does not matter
 * save RAM: none
 * compatibility: NTSC and PAL
 
 ## To do
 * test with other emulators
 * a Python script to convert an image file into an FCEUX movie that draws the image
+* paint cursor should accelerate
