@@ -14,8 +14,6 @@ Table of contents:
 
 ## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
-* `hexdump.py`: creates `hexdump.txt`
-* `hexdump.txt`: assembled program in hexadecimal
 * `paint.asm`: source code (ASM6)
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
 * `snap*.png`: screenshots
