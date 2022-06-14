@@ -83,7 +83,7 @@ brush_delay     equ 10   ; paint cursor move repeat delay (frames)
                 ; see https://wiki.nesdev.org/w/index.php/INES
                 base $0000
                 db "NES", $1a            ; file id
-                db 1, 0                  ; 16 KiB PRG ROM, 0 KiB CHR ROM (uses CHR RAM)
+                db 1, 1                  ; 16 KiB PRG ROM, 8 KiB CHR ROM
                 db %00000000, %00000000  ; NROM mapper; name table mirroring doesn't matter
                 pad $0010, $00           ; unused
 
@@ -150,62 +150,15 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
                 cpx #32
                 bne -
 
-                ; generate background pattern table data to PT0
-                ; 256 tiles, all combinations of 2*2 subpixels and 4 colors
-                ; bits of tile index: %AaBbCcDd:
-                ;     %Aa/%Bb = top    left/right subpixel
-                ;     %Cc/%Dd = bottom left/right subpixel
-                ; to generate data:
-                ;     for %ab, %cd, %AB, %CD in each tile index:
-                ;         convert bit pair into byte as follows and write it 4 times:
-                ;             %00->$00, %01->$0f, %10->$f0, %11->$ff
-                ; example: tile %10001011 = 00000000 0f0f0f0f f0f0f0f0 ffffffff
-                ;
-                ldy #$00                ; PPU address $0000
-                jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
-                tax                     ; X = tile index; Y = temporary
-                ;
--               txa
-                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %ab
-                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %cd
-                ;
-                txa
-                lsr a
-                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %AB
-                jsr wr_pt_bg_bytes      ; write 4 bytes using bits %CD
-                ;
-                inx
-                bne -
-
-                ldx #0                  ; copy sprite pattern table data to PT1 (PPU address is
--               lda pt_data_spr,x       ; already correct); X = source index; Y = temporary
-                ;
-                pha                     ; write byte using high nybble
-                lsr a
-                lsr a
-                lsr a
-                lsr a
-                tay
-                lda pt_spr_bytes,y
-                sta ppu_data
-                ;
-                pla                     ; write byte using low nybble
-                and #%00001111
-                tay
-                lda pt_spr_bytes,y
-                sta ppu_data
-                ;
-                inx
-                cpx #(pt_data_spr_end-pt_data_spr)
-                bne -
-
                 ldy #$20                ; clear name/attribute table 0 ($400 bytes)
                 jsr set_ppu_addr_pg     ; 0 -> A; Y*$100 -> address
                 ;
-                ldx #4
-                tay
--               jsr fill_vram           ; write A to PPU Y times and clear Y
-                dex
+                ldy #4
+                tax
+-               sta ppu_data
+                inx
+                bne -
+                dey
                 bne -
 
                 jsr wait_vbl_start      ; wait until next VBlank starts
@@ -219,11 +172,6 @@ reset           ; initialize the NES; see https://wiki.nesdev.org/w/index.php/In
 wait_vbl_start  bit ppu_status          ; wait until next VBlank starts
 -               bit ppu_status
                 bpl -
-                rts
-
-fill_vram       sta ppu_data            ; write A to PPU Y times and clear Y
-                dey
-                bne fill_vram
                 rts
 
 initial_pal     ; initial palette
@@ -252,16 +200,16 @@ initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 db    $ff, $12, %11000000,    0  ; #4:  cursor bottom right
                 ; palette editor
                 db    $ff, $11, %00000000, 29*8  ; #5:  cursor
-                db 22*8-1, $14, %00000001, 28*8  ; #6:  "P"
-                db 22*8-1, $13, %00000001, 29*8  ; #7:  cover (to right of "P")
+                db 22*8-1, $14, %00000001, 28*8  ; #6:  "Pal" - left  half
+                db 22*8-1, $15, %00000001, 29*8  ; #7:  "Pal" - right half
                 db 22*8-1, $00, %00000001, 30*8  ; #8:  subpalette number
                 db 23*8-1, $0c, %00000001, 28*8  ; #9:  "C"
                 db 23*8-1, $00, %00000001, 29*8  ; #10: color number - 16s
                 db 23*8-1, $00, %00000001, 30*8  ; #11: color number - ones
-                db 24*8-1, $15, %00000000, 29*8  ; #12: color 0
-                db 25*8-1, $15, %00000001, 29*8  ; #13: color 1
-                db 26*8-1, $15, %00000010, 29*8  ; #14: color 2
-                db 27*8-1, $15, %00000011, 29*8  ; #15: color 3
+                db 24*8-1, $16, %00000000, 29*8  ; #12: color 0
+                db 25*8-1, $16, %00000001, 29*8  ; #13: color 1
+                db 26*8-1, $16, %00000010, 29*8  ; #14: color 2
+                db 27*8-1, $16, %00000011, 29*8  ; #15: color 3
                 db 24*8-1, $13, %00000001, 28*8  ; #16: cover (to left  of color 0)
                 db 24*8-1, $13, %00000001, 30*8  ; #17: cover (to right of color 0)
                 db 25*8-1, $13, %00000001, 28*8  ; #18: cover (to left  of color 1)
@@ -271,68 +219,6 @@ initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 db 27*8-1, $13, %00000001, 28*8  ; #22: cover (to left  of color 3)
                 db 27*8-1, $13, %00000001, 30*8  ; #23: cover (to right of color 3)
 init_sprdat_end
-
-wr_pt_bg_bytes  ; write 4 bytes of background pattern table data
-                ; in: bits %xAxBxxxx of A = which byte to write
-                ; side effects: shifts A left 4 times; trashes Y and temp; writes ppu_data 4 times
-                ;
-                ldy #0                  ; bits of A: xAxBxxxx -> bits of temp: 000000AB
-                sty temp
-                asl a
-                asl a
-                rol temp
-                asl a
-                asl a
-                rol temp
-                ;
-                pha                     ; 4 * [$00,$0f,$f0,$ff][temp] -> PPU
-                ldy temp                ; trash Y (but not A/X)
-                lda pt_bg_bytes,y
-                ldy #4
-                jsr fill_vram           ; write A to PPU Y times and clear Y
-                pla
-                ;
-                rts
-
-pt_bg_bytes     hex 00 0f f0 ff
-
-pt_data_spr     ; sprite pattern table data (note: "cXonY" means "color X on color Y")
-                ; each nybble is an index to pt_spr_bytes
-                hex 99999999 04333340  ; tile $00 ("0"; all digits are c3on1)
-                hex 99999999 01111110  ; tile $01 ("1")
-                hex 99999999 04142240  ; tile $02 ("2")
-                hex 99999999 04141140  ; tile $03 ("3")
-                hex 99999999 03341110  ; tile $04 ("4")
-                hex 99999999 04241140  ; tile $05 ("5")
-                hex 99999999 04243340  ; tile $06 ("6")
-                hex 99999999 04111110  ; tile $07 ("7")
-                hex 99999999 04343340  ; tile $08 ("8")
-                hex 99999999 04341140  ; tile $09 ("9")
-                hex 99999999 04343330  ; tile $0a ("A")
-                hex 99999999 02243340  ; tile $0b ("B")
-                hex 99999999 04222240  ; tile $0c ("C")
-                hex 99999999 01143340  ; tile $0d ("D")
-                hex 99999999 04242240  ; tile $0e ("E")
-                hex 99999999 04242220  ; tile $0f ("F")
-                hex 87780000 87780000  ; tile $10 (small paint cursor, c3on0)
-                hex 96666669 96666669  ; tile $11 (large paint cursor, c3on0)
-                hex 95555555 95555555  ; tile $12 (attribute cursor corner, c3on0)
-                hex 99999999 00000000  ; tile $13 (color 1 only)
-                hex 99999999 04342220  ; tile $14 ("P", c3on1)
-                hex 00000009 99999990  ; tile $15 (rectangle, c2on1)
-pt_data_spr_end
-
-pt_spr_bytes    ; see pt_data_spr
-                db %00000000  ; index 0
-                db %00000110  ; index 1
-                db %01100000  ; index 2
-                db %01100110  ; index 3
-                db %01111110  ; index 4
-                db %10000000  ; index 5
-                db %10000001  ; index 6
-                db %10010000  ; index 7
-                db %11110000  ; index 8
-                db %11111111  ; index 9
 
 ; --- Main loop -----------------------------------------------------------------------------------
 
@@ -935,3 +821,11 @@ irq             rti
 
                 pad $fffa, $ff
                 dw nmi, reset, irq      ; note: IRQ unused
+
+; --- CHR ROM -------------------------------------------------------------------------------------
+
+                base $0000
+                incbin "chr-bg.bin"     ; background (combinations of 2*2 subpixels in 4 colors)
+                pad $1000, $ff
+                incbin "chr-spr.bin"    ; sprites
+                pad $2000, $ff

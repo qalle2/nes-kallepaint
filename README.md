@@ -1,5 +1,5 @@
 # Kalle Paint
-A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Assembles with [ASM6](https://www.romhacking.net/utilities/674/). Tested on FCEUX and Mednafen.
+A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Tested on FCEUX and Mednafen.
 
 Table of contents:
 * [List of files](#list-of-files)
@@ -14,7 +14,11 @@ Table of contents:
 
 ## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
-* `paint.asm`: source code (ASM6)
+* `chr-bg.bin.gz`: background CHR ROM data (gzip compressed)
+* `chr-bg-gen.py`: Python script that generates background CHR ROM data
+* `chr-spr.bin.gz`: sprite CHR ROM data (gzip compressed)
+* `chr-spr.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
+* `paint.asm`: source code (assembles with [ASM6](https://www.romhacking.net/utilities/674/))
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
 * `snap*.png`: screenshots
 
@@ -106,11 +110,10 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 ```
 
 ## Technical info
-* mapper: NROM (iNES mapper number 0)
-* PRG ROM: 16 KiB (only the last 2 KiB is actually used)
-* CHR ROM: 0 KiB (uses CHR RAM)
+* mapper: NROM
+* PRG ROM: 16 KiB
+* CHR ROM: 8 KiB
 * name table mirroring: does not matter
-* save RAM: none
 * compatibility: NTSC and PAL
 
 ## To do
