@@ -1,5 +1,5 @@
 # Kalle Paint
-A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Tested on FCEUX and Mednafen.
+A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Also known as Qalle Paint. Tested on FCEUX and Mednafen.
 
 Table of contents:
 * [List of files](#list-of-files)
@@ -114,7 +114,7 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 * PRG ROM: 16 KiB
 * CHR ROM: 8 KiB
 * name table mirroring: does not matter
-* compatibility: NTSC and PAL
+* compatibility: NTSC &amp; PAL
 
 ## To do
 * test with other emulators

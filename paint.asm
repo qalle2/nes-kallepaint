@@ -1,4 +1,4 @@
-; Kalle Paint (NES, ASM6)
+; Kalle Paint a.k.a. Qalle Paint (NES, ASM6)
 
 ; --- Constants -----------------------------------------------------------------------------------
 
@@ -204,21 +204,21 @@ initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 ;
                 ; palette editor
                 db    $ff, $11, %00000000, 28*8  ; #5:  cursor
-                db 22*8-1, $13, %00000001, 28*8  ; #6:  "Pal" - left  half
-                db 22*8-1, $14, %00000001, 29*8  ; #7:  "Pal" - right half
-                db 22*8-1, $00, %00000001, 30*8  ; #8:  subpalette number
-                db 23*8-1, $15, %00000000, 28*8  ; #9:  color 0 indicator
-                db 24*8-1, $15, %00000001, 28*8  ; #10: color 1 indicator
-                db 25*8-1, $15, %00000010, 28*8  ; #11: color 2 indicator
-                db 26*8-1, $15, %00000011, 28*8  ; #12: color 3 indicator
-                db 23*8-1, $00, %00000010, 29*8  ; #13: color 0 - sixteens
-                db 23*8-1, $00, %00000010, 30*8  ; #14: color 0 - ones
-                db 24*8-1, $00, %00000010, 29*8  ; #15: color 1 - sixteens
-                db 24*8-1, $00, %00000010, 30*8  ; #16: color 1 - ones
-                db 25*8-1, $00, %00000010, 29*8  ; #17: color 2 - sixteens
-                db 25*8-1, $00, %00000010, 30*8  ; #18: color 2 - ones
-                db 26*8-1, $00, %00000010, 29*8  ; #19: color 3 - sixteens
-                db 26*8-1, $00, %00000010, 30*8  ; #20: color 3 - ones
+                db 23*8-1, $13, %00000001, 28*8  ; #6:  "Pal" - left  half
+                db 23*8-1, $14, %00000001, 29*8  ; #7:  "Pal" - right half
+                db 23*8-1, $00, %00000001, 30*8  ; #8:  subpalette number
+                db 24*8-1, $15, %00000000, 28*8  ; #9:  color 0 indicator
+                db 25*8-1, $15, %00000001, 28*8  ; #10: color 1 indicator
+                db 26*8-1, $15, %00000010, 28*8  ; #11: color 2 indicator
+                db 27*8-1, $15, %00000011, 28*8  ; #12: color 3 indicator
+                db 24*8-1, $00, %00000010, 29*8  ; #13: color 0 - sixteens
+                db 24*8-1, $00, %00000010, 30*8  ; #14: color 0 - ones
+                db 25*8-1, $00, %00000010, 29*8  ; #15: color 1 - sixteens
+                db 25*8-1, $00, %00000010, 30*8  ; #16: color 1 - ones
+                db 26*8-1, $00, %00000010, 29*8  ; #17: color 2 - sixteens
+                db 26*8-1, $00, %00000010, 30*8  ; #18: color 2 - ones
+                db 27*8-1, $00, %00000010, 29*8  ; #19: color 3 - sixteens
+                db 27*8-1, $00, %00000010, 30*8  ; #20: color 3 - ones
 
 ; --- Main loop - common --------------------------------------------------------------------------
 
@@ -680,7 +680,7 @@ pal_editor2     ; palette editor, part 2
                 asl a
                 asl a
                 asl a
-                adc #(23*8-1)           ; carry is always clear
+                adc #(24*8-1)           ; carry is always clear
                 sta spr_data+5*4+0
                 ;
                 ldx #0                  ; sixteens and ones of 1st color
