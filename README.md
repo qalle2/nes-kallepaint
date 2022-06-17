@@ -74,10 +74,10 @@ Notes:
 The palette editor is a black window at the bottom right corner of the screen.
 
 Indicators:
-* `P`: number of subpalette being edited (`0`&ndash;`3`)
-* `C`: NES color number of selected color in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
+* `Pal`: number of subpalette being edited (`0`&ndash;`3`)
 * colored squares: colors in selected subpalette (topmost = first)
 * blinking cursor: highlights the color being edited
+* white digits: NES color numbers in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
 
 Buttons:
 * start: increment subpalette (there are four subpalettes)
