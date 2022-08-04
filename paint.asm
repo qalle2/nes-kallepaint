@@ -135,7 +135,7 @@ init_ram        ; initialize main RAM
                 lda #1
                 sta paint_color
 
-                jsr upd_pnt_cur_pos     ; update paint cursor position
+                jsr upd_pnt_cur_pos     ; update cursor position
                 rts
 
 init_ppu_mem    ; initialize PPU memory
@@ -318,7 +318,7 @@ inc_paint_color ; increment paint color (0 -> 1 -> 2 -> 3 -> 0)
                 txa
                 and #%00000011
                 sta paint_color
-                jmp upd_pnt_cur_clr     ; ends with RTS
+                jmp upd_pnt_cur_clr     ; update cursor color; ends with RTS
 
 to_attr_editor  ; switch to attribute editor
                 lda #$ff                ; hide paint cursor
@@ -354,7 +354,8 @@ toggle_brush    ; toggle brush size
                 asl cursor_x
                 lsr cursor_y
                 asl cursor_y
-+               rts
+                ;
++               jmp upd_pnt_cur_pos     ; update cursor position; ends with RTS
 
 pm_arrows       ; d-pad arrow logic
                 ;
@@ -374,8 +375,8 @@ pm_arrows       ; d-pad arrow logic
                 jsr chk_vert_arrows     ; accept input
                 lda #10                 ; reinit delay
                 sta delay_left
-                jsr upd_pnt_cur_pos     ; update paint cursor position
-                jmp upd_pnt_cur_clr     ; update paint crsr color (ends w/ RTS)
+                jsr upd_pnt_cur_pos     ; update cursor position
+                jmp upd_pnt_cur_clr     ; update cursor color (ends with RTS)
 
 chk_horz_arrows ; check horizontal arrows
                 ;
@@ -745,8 +746,8 @@ to_paint_mode   ; switch to paint mode
                 ldy #16
                 jsr hide_sprites        ; X = first byte index, Y = count
                 ;
-                jsr upd_pnt_cur_pos     ; update paint cursor position
-                jsr upd_pnt_cur_clr     ; update paint cursor color
+                jsr upd_pnt_cur_pos     ; update cursor position
+                jsr upd_pnt_cur_clr     ; update cursor color
                 ;
                 lda #mode_paint
                 sta program_mode
