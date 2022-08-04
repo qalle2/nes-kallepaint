@@ -23,7 +23,7 @@ Table of contents:
 * `snap*.png`: screenshots
 
 ## Features
-* 64&times;60 "pixels" (4&times;4 hardware pixels each; a couple of topmost and bottommost pixel rows may be invisible depending on your screen)
+* 64&times;60 "pixels" (4&times;4 hardware pixels each)
 * 13 colors simultaneously from the NES master palette
 * 1&times;1-pixel or 2&times;2-pixel brush
 
@@ -77,7 +77,7 @@ Indicators:
 * `Pal`: number of subpalette being edited (`0`&ndash;`3`)
 * colored squares: colors in selected subpalette (topmost = first)
 * blinking cursor: highlights the color being edited
-* white digits: NES color numbers in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
+* digits next to colors: NES color numbers in hexadecimal (`00`&ndash;`3F`); the first digit roughly corresponds to brightness (dark/light) and the second one to hue (red/green/etc.)
 
 Buttons:
 * start: increment subpalette (there are four subpalettes)
