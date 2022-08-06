@@ -1,6 +1,8 @@
 # Kalle Paint
 A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Also known as Qalle Paint. Tested on FCEUX and Mednafen.
 
+![screenshot](snap.png)
+
 Table of contents:
 * [List of files](#list-of-files)
 * [Features](#features)
@@ -20,7 +22,7 @@ Table of contents:
 * `chr-spr.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
 * `paint.asm`: source code (assembles with [ASM6](https://www.romhacking.net/utilities/674/))
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
-* `snap*.png`: screenshots
+* `snap.png`: screenshot
 
 ## Features
 * 64&times;60 "pixels" (4&times;4 hardware pixels each)
@@ -38,7 +40,6 @@ By default, the screen is filled with the first color of the first subpalette.
 There are three modes. Press select at any time to cycle between them. However, beginners are advised to stick to the default mode (paint mode) for quite a while before experimenting with the other modes.
 
 ### Paint mode
-![paint mode](snap1.png)
 
 The program starts in this mode. The cursor is a small or medium non-blinking square. It reflects the selected brush size and paint color.
 
@@ -54,7 +55,6 @@ Note: The cursor is invisible if it is on a pixel of the same color or at the ve
 Hint: to move long distances faster, switch to the large brush.
 
 ### Attribute edit mode
-![attribute edit mode](snap2.png)
 
 This mode looks like the paint mode except that the cursor is a large blinking square.
 
@@ -69,7 +69,6 @@ Notes:
 * The cursor is partially invisible at the top of the screen. It may also be partially invisible at the bottom depending on your screen.
 
 ### Palette edit mode
-![palette edit mode](snap3.png)
 
 The palette editor is a black window at the bottom right corner of the screen.
 
