@@ -1,7 +1,8 @@
 # Kalle Paint
 A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Also known as Qalle Paint. Tested on FCEUX and Mednafen.
 
-![screenshot](snap.png)
+![screenshot](snap1.png)
+![screenshot](snap2.png)
 
 Table of contents:
 * [List of files](#list-of-files)
@@ -17,11 +18,14 @@ Table of contents:
 ## List of files
 * `assemble.sh`: Linux script that assembles the program (warning: deletes files)
 * `chr-bg.bin.gz`: background CHR ROM data (gzip compressed)
-* `chr-bg-gen.py`: Python script that generates background CHR ROM data
+* `chr-bg-gen.py`: a Python program that generates background CHR ROM data
 * `chr-spr.bin.gz`: sprite CHR ROM data (gzip compressed)
 * `chr-spr.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
+* `convtest.fm2.gz`: an FCEUX movie created with `png2fm2.py` (gzip compressed)
+* `convtest.png`: a test image for `png2fm2.py`
 * `paint.asm`: source code (assembles with [ASM6](https://www.romhacking.net/utilities/674/))
 * `paint.nes.gz`: assembled program (iNES format, gzip compressed)
+* `png2fm2.py`: a Python program that converts a PNG image into an FM2 (FCEUX) movie that draws the image
 * `snap.png`: screenshot
 
 ## Features
@@ -117,5 +121,4 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 
 ## To do
 * test with other emulators
-* a Python script to convert an image file into an FCEUX movie that draws the image
 * paint cursor should accelerate
