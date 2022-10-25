@@ -228,26 +228,32 @@ def fm2_line(buttons=""):
     buttons2 = "".join((b if b in buttons else ".") for b in "RLDUTSBA")
     return "|0|" + buttons2 + "|||"
 
-def generate_program(subpals, attrData, pixels):
-    # generate button presses for FM2 program
+def smallest_of_most_common(items):
+    # return smallest of most common items; e.g. (2, 2, 1, 1, 0) -> 1
+    maxCnt = max(items.count(i) for i in set(items))
+    return sorted(i for i in set(items) if items.count(i) == maxCnt)[0]
 
-    # paint mode
+def generate_program_paint(pixels):
+    # generate button presses for FM2 program while in paint mode
 
-    # big cursor
-    yield "T"
+    yield "T"  # big cursor
+
     # go to upper left corner
     yield from DEFAULT_CURSOR_POS[0] // 2 * "L"
     yield from DEFAULT_CURSOR_POS[1] // 2 * "U"
-    # cursor color (0-3)
-    cursColor = 1
+
+    cursColor = 1  # current cursor (paint) color (0-3)
+
     # paint 2*2-pixel blocks
     for y in range(0, 60, 2):
         for x in range(0, 64, 2):
-            # get colors of pixels in block
+            # get colors of pixels in block (TL, TR, BL, BR)
             pixelColors \
             = pixels[y*64+x:y*64+x+2] + pixels[(y+1)*64+x:(y+1)*64+x+2]
-            # paint block with its most common color
-            blockColor = collections.Counter(pixelColors).most_common(1)[0][0]
+            # get the smallest one of the most common colors (faster than
+            # using the most common color that occurs first)
+            blockColor = smallest_of_most_common(pixelColors)
+            # paint the block with its most common color
             if blockColor != 0:
                 yield from (blockColor - cursColor) % 4 * "B"
                 yield "A"
@@ -280,13 +286,12 @@ def generate_program(subpals, attrData, pixels):
                 yield "T"  # big cursor
             yield "R"  # next block
         yield "D"  # next block row
+
     yield "T"  # small cursor
 
-    # attribute edit mode
+def generate_program_attr(attrData):
+    # generate button presses for FM2 program while in attribute edit mode
 
-    # switch mode
-    yield "S"
-    # set attribute blocks
     for y in range(15):
         for x in range(16):
             attr = attrData[y*16+x]
@@ -297,10 +302,9 @@ def generate_program(subpals, attrData, pixels):
             yield "R"  # right
         yield "D"  # down
 
-    # palette editor
+def generate_program_palette(subpals):
+    # generate button presses for FM2 program in palette edit mode
 
-    # switch mode
-    yield "S"
     for i in range(4):  # subpalette index
         for j in range(4):  # color index
             # only set BG color in first subpalette
@@ -322,7 +326,18 @@ def generate_program(subpals, attrData, pixels):
             yield "D"  # next color
         yield "T"  # next subpalette
 
-    # switch mode
+def generate_program(subpals, attrData, pixels):
+    # generate button presses for FM2 program
+
+    # paint mode
+    yield from generate_program_paint(pixels)
+    # attribute edit mode
+    yield "S"
+    yield from generate_program_attr(attrData)
+    # palette edit mode
+    yield "S"
+    yield from generate_program_palette(subpals)
+    # paint mode
     yield "S"
 
 def print_fm2(subpals, attrData, pixels):
