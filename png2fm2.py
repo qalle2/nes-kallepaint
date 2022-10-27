@@ -189,7 +189,7 @@ def generate_pixels(image, attrData, palette, subpalsNes):
         # convert PNG indexes to subpalette indexes
         yield subpalsNes[subpal].index(palette[pixel])
 
-def process_image(image, mode=0, uniqueTiles=None):
+def process_image(image):
     palette = get_palette(image)  # {pngIndex: nesColor, ...}
 
     # get the PNG index of the color that appears in the largest number of
