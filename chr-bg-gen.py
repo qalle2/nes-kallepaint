@@ -9,7 +9,7 @@
 #       %00->$00, %01->$0f, %10->$f0, %11->$ff
 #   example: tile %10001011 = $00000000 $0f0f0f0f $f0f0f0f0 $ffffffff
 
-import os, sys
+import sys
 
 def generate_bytes():
     for i in range(0x100):  # tile index
@@ -22,12 +22,8 @@ def main():
     if len(sys.argv) != 2:
         sys.exit("Argument: output file (will be overwritten)")
 
-    data = bytearray()
-    for byte in generate_bytes():
-        data += 4 * bytes((byte,))
-
     with open(sys.argv[1], "wb") as target:
         target.seek(0)
-        target.write(data)
+        target.write(b"".join(4 * bytes((b,)) for b in generate_bytes()))
 
 main()
