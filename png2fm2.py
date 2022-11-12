@@ -197,6 +197,7 @@ def process_image(image):
     bgIndex = collections.Counter(itertools.chain.from_iterable(
         get_color_sets(image)
     )).most_common(1)[0][0]
+    print(f"BG color (NES): ${palette[bgIndex]:02x}", file=sys.stderr)
 
     # get unique sets of color indexes in attribute blocks
     colorSets = {frozenset(s - {bgIndex}) for s in get_color_sets(image)}
