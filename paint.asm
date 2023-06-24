@@ -211,31 +211,31 @@ initial_pal     ; initial palette
 initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
 
                 ; paint mode
-                db $ff, $10, %00000000, 0  ; #0: cursor
+                db $ff, $30, %00000000, 0  ; #0: cursor
 
                 ; attribute editor
-                db $ff, $12, %00000000, 0  ; #1: cursor top    left
-                db $ff, $12, %01000000, 0  ; #2: cursor top    right
-                db $ff, $12, %10000000, 0  ; #3: cursor bottom left
-                db $ff, $12, %11000000, 0  ; #4: cursor bottom right
+                db $ff, $32, %00000000, 0  ; #1: cursor top    left
+                db $ff, $32, %01000000, 0  ; #2: cursor top    right
+                db $ff, $32, %10000000, 0  ; #3: cursor bottom left
+                db $ff, $32, %11000000, 0  ; #4: cursor bottom right
 
                 ; palette editor
-                db    $ff, $13,         %00, 28*8  ; #5:  cursor
-                db 23*8-1, $14,         %01, 28*8  ; #6:  "Pal" - left
-                db 23*8-1, $15,         %01, 29*8  ; #7:  "Pal" - right
-                db 23*8-1, $16,         %01, 30*8  ; #8:  subpalette number
-                db 24*8-1, $1a,         %10, 28*8  ; #9:  color 0 - square
-                db 25*8-1, $1b,         %10, 28*8  ; #10: color 1 - square
-                db 26*8-1, $1a,         %11, 28*8  ; #11: color 2 - square
-                db 27*8-1, $1b,         %11, 28*8  ; #12: color 3 - square
-                db 24*8-1, color_bg/16, %01, 29*8  ; #13: color 0 - 16s
-                db 24*8-1, color_bg&15, %01, 30*8  ; #14: color 0 - 1s
-                db 25*8-1, $01,         %01, 29*8  ; #15: color 1 - 16s
-                db 25*8-1, $05,         %01, 30*8  ; #16: color 1 - 1s
-                db 26*8-1, $02,         %01, 29*8  ; #17: color 2 - 16s
-                db 26*8-1, $05,         %01, 30*8  ; #18: color 2 - 1s
-                db 27*8-1, $03,         %01, 29*8  ; #19: color 3 - 16s
-                db 27*8-1, $05,         %01, 30*8  ; #20: color 3 - 1s
+                db    $ff, $33,             %00, 28*8  ; #5:  cursor
+                db 23*8-1, $34,             %01, 28*8  ; #6:  "Pal" - left
+                db 23*8-1, $35,             %01, 29*8  ; #7:  "Pal" - right
+                db 23*8-1, $36,             %01, 30*8  ; #8:  subpalette number
+                db 24*8-1, $3a,             %10, 28*8  ; #9:  color 0 - square
+                db 25*8-1, $3b,             %10, 28*8  ; #10: color 1 - square
+                db 26*8-1, $3a,             %11, 28*8  ; #11: color 2 - square
+                db 27*8-1, $3b,             %11, 28*8  ; #12: color 3 - square
+                db 24*8-1, $20|color_bg/16, %01, 29*8  ; #13: color 0 - 16s
+                db 24*8-1, $20|color_bg&15, %01, 30*8  ; #14: color 0 - 1s
+                db 25*8-1, $21,             %01, 29*8  ; #15: color 1 - 16s
+                db 25*8-1, $25,             %01, 30*8  ; #16: color 1 - 1s
+                db 26*8-1, $22,             %01, 29*8  ; #17: color 2 - 16s
+                db 26*8-1, $25,             %01, 30*8  ; #18: color 2 - 1s
+                db 27*8-1, $23,             %01, 29*8  ; #19: color 3 - 16s
+                db 27*8-1, $25,             %01, 30*8  ; #20: color 3 - 1s
 
 ; --- Main loop - common ------------------------------------------------------
 
@@ -357,7 +357,7 @@ toggle_brush    ; toggle brush size
                 eor #%00000001
                 sta brush_size
                 clc                     ; update cursor tile
-                adc #$10
+                adc #$30
                 sta sprite_data+0+1
 
                 lda brush_size          ; if large brush, make coordinates even
@@ -820,7 +820,7 @@ pe_inc_subpal   ; increment selected subpalette (0 -> 1 -> 2 -> 3 -> 0)
                 sta pal_ed_subpal
 
                 clc                     ; update tile of selected subpalette
-                adc #$16
+                adc #$36
                 sta sprite_data+8*4+1
                 jsr pe_upd_col_dgts     ; update color digits
                 jmp pe_upd_palette      ; update palette; ends with RTS
@@ -941,10 +941,12 @@ pe_upd_numtiles ; update tiles of 2 number sprites (sixteens and ones)
                 lsr a
                 lsr a
                 lsr a
+                ora #$20
                 sta sprite_data+1,y
 
                 lda user_pal,x          ; ones tile
                 and #%00001111
+                ora #$20
                 sta sprite_data+4+1,y
                 rts
 

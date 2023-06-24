@@ -26,7 +26,7 @@ Text:
 * `png2fm2.py`: a Python program that converts a PNG image into an FM2 (FCEUX) movie that draws the image
 
 Images:
-* `chr-pt1.png`: CHR ROM data for pattern table 1; the first 28 tiles are for sprites, the rest are for title screen background; can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util)
+* `chr-pt1.png`: CHR ROM data for pattern table 1; the first 32 tiles are for title screen background, the next 32 are for sprites; can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util)
 * `convtest*.png`: test images for `png2fm2.py`
 * `snap*.png`: screenshots
 
