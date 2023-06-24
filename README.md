@@ -21,12 +21,12 @@ Table of contents:
 ## List of files
 Text:
 * `assemble.sh`: a Linux script that assembles the program (warning: deletes files)
-* `chr-pt0-gen.py`: a Python program that generates background CHR ROM data
+* `chr-pt0-gen.py`: a Python program that generates CHR ROM data for pattern table 0 (background for all modes except title screen)
 * `paint.asm`: source code (assembles with [ASM6](https://www.romhacking.net/utilities/674/))
 * `png2fm2.py`: a Python program that converts a PNG image into an FM2 (FCEUX) movie that draws the image
 
 Images:
-* `chr-pt1.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
+* `chr-pt1.png`: CHR ROM data for pattern table 1; the first 28 tiles are for sprites, the rest are for title screen background; can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util)
 * `convtest*.png`: test images for `png2fm2.py`
 * `snap*.png`: screenshots
 
@@ -128,5 +128,6 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 * compatibility: NTSC &amp; PAL
 
 ## To do
+* implement title screen (help text, use tiles from pattern table 1)
 * test with other emulators
 * paint cursor should accelerate
