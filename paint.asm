@@ -1095,7 +1095,7 @@ set_ppu_regs    lda #0                  ; reset PPU scroll
 ; --- CHR ROM -----------------------------------------------------------------
 
                 base $0000
-                incbin "chr-bg.bin"     ; background
+                incbin "chr-pt0.bin"    ; background
                 pad $1000, $ff
-                incbin "chr-spr.bin"    ; sprites
+                incbin "chr-pt1.bin"    ; sprites
                 pad $2000, $ff

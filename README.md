@@ -21,18 +21,18 @@ Table of contents:
 ## List of files
 Text:
 * `assemble.sh`: a Linux script that assembles the program (warning: deletes files)
-* `chr-bg-gen.py`: a Python program that generates background CHR ROM data
+* `chr-pt0-gen.py`: a Python program that generates background CHR ROM data
 * `paint.asm`: source code (assembles with [ASM6](https://www.romhacking.net/utilities/674/))
 * `png2fm2.py`: a Python program that converts a PNG image into an FM2 (FCEUX) movie that draws the image
 
 Images:
-* `chr-spr.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
+* `chr-pt1.png`: sprite CHR ROM data as an image (can be encoded with `nes_chr_encode.py` in [my NES utilities](https://github.com/qalle2/nes-util))
 * `convtest*.png`: test images for `png2fm2.py`
 * `snap*.png`: screenshots
 
 Other (gzip compressed):
-* `chr-bg.bin.gz`: background CHR ROM data (see `chr-bg-gen.py`)
-* `chr-spr.bin.gz`: sprite CHR ROM data (see `chr-spr.png`)
+* `chr-pt0.bin.gz`: background CHR ROM data (see `chr-pt0-gen.py`)
+* `chr-pt1.bin.gz`: sprite CHR ROM data (see `chr-pt1.png`)
 * `convtest*.fm2.gz`: FCEUX movies created with `png2fm2.py`
 * `paint.nes.gz`: assembled program (iNES format)
 
