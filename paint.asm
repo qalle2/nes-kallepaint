@@ -27,6 +27,8 @@ cursor_y        equ $2f    ; cursor Y position (paint/attribute editor; 0-59)
 blink_timer     equ $30    ; cursor blink timer  (attribute/palette editor)
 pal_ed_crsr_pos equ $31    ; cursor position     (palette editor; 0-3)
 pal_ed_subpal   equ $32    ; selected subpalette (palette editor; 0-3)
+ppu_ctrl_copy   equ $33    ; copy of ppu_ctrl
+str_ptr         equ $34    ; pointer for reading string data (2 bytes)
 vram_copy       equ $0200  ; copy of name & attribute table 0 ($400 bytes)
 sprite_data     equ $0600  ; OAM page ($100 bytes)
 
@@ -46,9 +48,15 @@ joypad1         equ $4016
 joypad2         equ $4017
 
 ; program modes
-mode_paint      equ 0  ; paint mode
-mode_attr_ed    equ 1  ; attribute editor
-mode_pal_ed     equ 2  ; palette editor
+mode_title      equ 0  ; title screen
+mode_paint      equ 1  ; paint mode
+mode_attr_ed    equ 2  ; attribute editor
+mode_pal_ed     equ 3  ; palette editor
+
+; possible transitions between modes:
+;     reset -> title -> paint -> attr_ed -> pal_ed
+;                         ^                   |
+;                         +-------------------+
 
 ; user interface colors
 color_bg        equ $0f  ; background   (black)
@@ -61,7 +69,7 @@ color_fg2       equ $30  ; foreground 2 (white)
                 base $0000
                 db "NES", $1a            ; file id
                 db 1, 1                  ; 16 KiB PRG ROM, 8 KiB CHR ROM
-                db %00000000, %00000000  ; NROM mapper; any NT mirroring
+                db %00000001, %00000000  ; NROM mapper, vertical NT mirroring
                 pad $0010, $00           ; unused
 
 ; --- Initialization ----------------------------------------------------------
@@ -132,11 +140,18 @@ init_ram        ; initialize main RAM
                 dex
                 bpl -
 
-                ldx #(1*4)              ; hide sprites except paint cursor (#0)
-                ldy #63
+                ldx #(0*4)              ; hide all sprites
+                ldy #64
                 jsr hide_sprites        ; X = first byte index, Y = count
 
-                lda #mode_paint         ; set misc vars
+                ; this will be copied to prev_pad_status before the pad is
+                ; read the first time and will prevent buttons from registering
+                ; on the first frame
+                lda #%11111111
+                sta pad_status
+
+                ; set misc vars
+                lda #mode_title
                 sta program_mode
                 lda #32
                 sta cursor_x
@@ -145,7 +160,11 @@ init_ram        ; initialize main RAM
                 lda #1
                 sta paint_color
 
-                jmp pm_upd_crsr_pos     ; update cursor position; ends with RTS
+                ; enable NMI, use PT1 for BG & sprites, use NT1
+                lda #%10011001
+                sta ppu_ctrl_copy
+
+                rts
 
 init_ppu_mem    ; initialize PPU memory
 
@@ -162,13 +181,13 @@ init_ppu_mem    ; initialize PPU memory
                 cpx #32
                 bne -
 
-                ; clear name & attribute table 0
-
+                ; clear NTs & ATs ($800 bytes)
+                ;
                 ldy #$20
                 lda #$00
                 jsr set_ppu_addr        ; Y*$100+A -> address
-
-                ldy #4
+                ;
+                ldy #8
                 tax
 -               sta ppu_data
                 inx
@@ -176,12 +195,40 @@ init_ppu_mem    ; initialize PPU memory
                 dey
                 bne -
 
+                ; write title screen strings to PT1 and return
+                ;
+                ; init source pointer & index to start of data minus one
+                lda #<(title_strs-$100)
+                sta str_ptr+0
+                lda #>(title_strs-$100)
+                sta str_ptr+1
+                ldy #$ff
+                ;
+--              jsr inc_str_ptr
+                lda (str_ptr),y         ; PPU address high or terminator
+                bpl +
                 rts
++               sta ppu_addr
+                jsr inc_str_ptr
+                lda (str_ptr),y         ; PPU address low
+                sta ppu_addr
+                ;
+-               jsr inc_str_ptr
+                lda (str_ptr),y         ; character or terminator
+                bmi --
+                sta ppu_data
+                jmp -
+
+inc_str_ptr     ; increment string read index & pointer
+                iny
+                bne +
+                inc str_ptr+1
++               rts
 
 initial_pal     ; initial palette
 
                 ; background (default user palette; changes during runtime)
-                db color_bg, $15, $25, $35  ; reds
+                db color_bg, $30, $25, $35  ; reds ($30 changed after title)
                 db color_bg, $18, $28, $38  ; yellows
                 db color_bg, $1b, $2b, $3b  ; greens
                 db color_bg, $12, $22, $32  ; blues
@@ -237,16 +284,101 @@ initial_spr_dat ; initial sprite data (Y, tile, attributes, X for each sprite)
                 db 27*8-1, $23,             %01, 29*8  ; #19: color 3 - 16s
                 db 27*8-1, $25,             %01, 30*8  ; #20: color 3 - 1s
 
+macro str_at _y, _x                     ; string in NT1
+                dh $2400+(_y)*32+(_x)
+                dl $2400+(_y)*32+(_x)
+endm
+
+title_strs      ; title screen strings; for each string:
+                ; - PPU address high (negative=end of string data)
+                ; - PPU address low
+                ; - tile indexes in PT1 (negative=end of string);
+                ;   subtract 64 from uppercase ASCII
+                ;
+                str_at 2, 10            ; "QALLE PAINT"
+                db "QALLE"-64, 0, "PAINT"-64
+                hex 80
+                ;
+                str_at 5, 6             ; "PRESS START TO BEGIN"
+                db "PRESS"-64, 0, "START"-64, 0, "TO"-64, 0, "BEGIN"-64
+                hex 80
+                ;
+                str_at 8, 3             ; "BUTTONS AFTER THIS SCREEN:"
+                db "BUTTONS"-64, 0, "AFTER"-64, 0, "THIS"-64, 0, "SCREEN"-64
+                db $1c
+                hex 80
+                ;
+                str_at 10, 7            ; "SELECT=CYCLE MODES"
+                db "SELECT"-64, $1d, "CYCLE"-64, 0, "MODES"-64
+                hex 80
+                ;
+                str_at 12, 9            ; "IN PAINT MODE:"
+                db "IN"-64, 0, "PAINT"-64, 0, "MODE"-64, $1c
+                hex 80
+                ;
+                str_at 13, 7            ; "ARROWS=MOVE CURSOR"
+                db "ARROWS"-64, $1d, "MOVE"-64, 0, "CURSOR"-64
+                hex 80
+                ;
+                str_at 14, 4            ; "START=CHANGE BRUSH SIZE"
+                db "START"-64, $1d, "CHANGE"-64, 0, "BRUSH"-64, 0, "SIZE"-64
+                hex 80
+                ;
+                str_at 15, 6            ; "B=CHANGE BRUSH COLOR"
+                db "B"-64, $1d, "CHANGE"-64, 0, "BRUSH"-64, 0, "COLOR"-64
+                hex 80
+                ;
+                str_at 16, 12           ; "A=PAINT"
+                db "A"-64, $1d, "PAINT"-64
+                hex 80
+                ;
+                str_at 18, 4            ; "IN ATTRIBUTE EDIT MODE:"
+                db "IN"-64, 0, "ATTRIBUTE"-64, 0, "EDIT"-64, 0, "MODE"-64, $1c
+                hex 80
+                ;
+                str_at 19, 7            ; "ARROWS=MOVE CURSOR"
+                db "ARROWS"-64, $1d, "MOVE"-64, 0, "CURSOR"-64
+                hex 80
+                ;
+                str_at 20, 5            ; "B=PREVIOUS SUBPALETTE"
+                db "B"-64, $1d, "PREVIOUS"-64, 0, "SUBPALETTE"-64
+                hex 80
+                ;
+                str_at 21, 7            ; "A=NEXT SUBPALETTE"
+                db "A"-64, $1d, "NEXT"-64, 0, "SUBPALETTE"-64
+                hex 80
+                ;
+                str_at 23, 5            ; "IN PALETTE EDIT MODE:"
+                db "IN"-64, 0, "PALETTE"-64, 0, "EDIT"-64, 0, "MODE"-64, $1c
+                hex 80
+                ;
+                str_at 24, 5            ; "U/D ARROW=MOVE CURSOR"
+                db "U"-64, $1b, "D"-64, 0, "ARROW"-64, $1d, "MOVE"-64, 0
+                db "CURSOR"-64
+                hex 80
+                ;
+                str_at 25, 5            ; "L/R ARROW=CHANGE ONES"
+                db "L"-64, $1b, "R"-64, 0, "ARROW"-64, $1d, "CHANGE"-64, 0
+                db "ONES"-64
+                hex 80
+                ;
+                str_at 26, 6            ; "B/A=CHANGE SIXTEENS"
+                db "B"-64, $1b, "A"-64, $1d, "CHANGE"-64, 0, "SIXTEENS"-64
+                hex 80
+                ;
+                hex 80                  ; string data terminator
+
 ; --- Main loop - common ------------------------------------------------------
 
-main_loop       bit run_main_loop       ; wait until NMI routine has run
+main_loop       ; wait until NMI routine has run and clear flag
+                bit run_main_loop
                 bpl main_loop
+                lsr run_main_loop
 
-                lsr run_main_loop       ; clear flag
-
-                lda pad_status          ; store previous joypad status
+                ; store previous joypad status and read joypad
+                lda pad_status
                 sta prev_pad_status
-                jsr read_joypad         ; read joypad
+                jsr read_joypad
 
                 jsr upd_blink_color     ; update color of blinking cursor
                 inc blink_timer         ; advance timer
@@ -297,8 +429,31 @@ jump_engine     ; jump to one sub depending on program mode
                 rts
 
                 ; jump table - high/low bytes
-jump_table_hi   dh paint_mode-1, attr_editor-1, palette_editor-1
-jump_table_lo   dl paint_mode-1, attr_editor-1, palette_editor-1
+jump_table_hi   dh title_scrn-1, paint_mode-1, attr_editor-1, palette_editor-1
+jump_table_lo   dl title_scrn-1, paint_mode-1, attr_editor-1, palette_editor-1
+
+; --- Main loop - title screen (label prefix "ts_") ---------------------------
+
+title_scrn      ; if start pressed, switch to paint mode
+                lda prev_pad_status
+                bne +
+                lda pad_status
+                and #%00010000
+                beq +
+                ;
+                ; from now on, BG uses PT0 & NT0; keep NMI enabled and keep
+                ; using PT1 for sprites
+                lda #%10001000
+                sta ppu_ctrl_copy
+                ;
+                ; replace color that was used for title text
+                lda #$15
+                sta user_pal+1
+                ldy #1
+                jsr to_ppu_buf_pal      ; A to PPU $3f00 + Y
+                ;
+                jsr to_paint_mode
++               rts                     ; return to main loop
 
 ; --- Main loop - paint mode (label prefix "pm_") -----------------------------
 
@@ -1083,7 +1238,7 @@ set_ppu_addr    ; Y*$100+A -> address
 set_ppu_regs    lda #0                  ; reset PPU scroll
                 sta ppu_scroll
                 sta ppu_scroll
-                lda #%10001000          ; NMI enabled, use PT1 for sprites
+                lda ppu_ctrl_copy
                 sta ppu_ctrl
                 lda #%00011110          ; show BG & sprites
                 sta ppu_mask

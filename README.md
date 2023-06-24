@@ -49,11 +49,11 @@ Restrictions on color use:
 By default, the screen is filled with the first color of the first subpalette.
 
 ## How to use
-There are three modes. Press select at any time to cycle between them. However, beginners are advised to stick to the default mode (paint mode) for quite a while before experimenting with the other modes.
+First, press start to exit the title/help screen. (You can't get back to it.) Afterwards, there are three modes. Press select at any time to cycle between them.
 
 ### Paint mode
 
-The program starts in this mode. The cursor is a small or medium non-blinking square. It reflects the selected brush size and paint color.
+The cursor is a small or medium non-blinking square. It reflects the selected brush size and paint color.
 
 Buttons:
 * up/down/left/right: move cursor (hold down to move repeatedly)
@@ -124,10 +124,12 @@ select | to attribute edit mode | to palette edit mode   | to paint mode
 * mapper: NROM
 * PRG ROM: 16 KiB
 * CHR ROM: 8 KiB
-* name table mirroring: does not matter
+* name table mirroring: vertical
+* name table 0: all modes except title screen
+* name table 1: title screen
 * compatibility: NTSC &amp; PAL
 
 ## To do
-* implement title screen (help text, use tiles from pattern table 1)
+* only use NTSC visible area
 * test with other emulators
 * paint cursor should accelerate
