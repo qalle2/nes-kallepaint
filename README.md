@@ -6,6 +6,7 @@ Screenshots (the last one is from *Doom* by id Software):
 ![screenshot](snap1.png)
 ![screenshot](snap2.png)
 ![screenshot](snap3.png)
+![screenshot](snap4.png)
 
 Table of contents:
 * [List of files](#list-of-files)
