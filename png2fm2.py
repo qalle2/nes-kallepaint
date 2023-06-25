@@ -347,8 +347,15 @@ def print_fm2(subpals, attrData, pixels):
 
     print(FM2_HEADER)
 
-    # start-up delay (4 is the minimum)
-    for i in range(6):
+    # start-up delay (7 is the minimum)
+    for i in range(9):
+        print(fm2_line())
+
+    # press start to exit title screen
+    print(fm2_line("T"))
+
+    # another delay (0 is the minimum)
+    for i in range(2):
         print(fm2_line())
 
     for buttons in generate_program(subpals, attrData, pixels):
