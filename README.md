@@ -1,4 +1,6 @@
 # Kalle Paint
+*Note: This project has been moved to [Codeberg](https://codeberg.org/qalle/nes-qalle-paint). This version will no longer be updated.*
+
 A paint program for the [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System). Also known as Qalle Paint. Tested on FCEUX and Mednafen.
 
 Screenshots (the last one is from *Doom* by id Software):
